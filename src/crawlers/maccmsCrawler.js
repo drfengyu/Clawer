@@ -45,6 +45,28 @@ class MaccmsCrawler extends BaseCrawler {
   }
 
   /**
+   * 爬取分类页（如 /h/2/ 国漫），返回该分类下的动漫卡片
+   * @returns {Promise<{animes: Array, title: string}>}
+   */
+  async crawlCategory(categoryUrl) {
+    const html = await this.fetchPage(categoryUrl);
+    const $ = this.parseHTML(html);
+    const cards = this._parseCards($);
+    return {
+      title: $('title').text().replace(/ - .*/, '').trim(),
+      animes: cards.map(c => ({
+        sourceId: c.id,
+        title: c.title,
+        cover: c.cover,
+        score: c.score,
+        status: c.status,
+        updateDate: c.updateDate,
+        detailUrl: c.detailUrl
+      }))
+    };
+  }
+
+  /**
    * 爬取动漫详情页：封面、简介、分类、播放线路和分集
    * @returns {Promise<{anime: Object, episodes: Array}>}
    */
@@ -156,7 +178,7 @@ class MaccmsCrawler extends BaseCrawler {
         sourceId,
         title,
         cover: this.resolveUrl(detailUrl, cover),
-        score,
+        score: meta.score ? parseFloat(meta.score) : score,
         status,
         description: desc.slice(0, 2000),
         detailUrl,

@@ -1,9 +1,51 @@
 const express = require('express');
 const router = express.Router();
+const MaccmsCrawler = require('../crawlers/maccmsCrawler');
+
+// 四大分区配置
+const CATEGORY_MAP = {
+  '日漫': '/h/1/',
+  '国漫': '/h/2/',
+  '美漫': '/h/3/',
+  '动漫剧场': '/h/20/'
+};
+const DEFAULT_SITE = 'https://m.tiantiandongman.com/';
 
 // 首页 → 重定向到画廊
 router.get('/', (req, res) => {
   res.redirect('/gallery');
+});
+
+// 分类浏览页
+router.get('/category/:name', async (req, res) => {
+  try {
+    const name = decodeURIComponent(req.params.name);
+    const path = CATEGORY_MAP[name];
+    if (!path) return res.status(404).render('error', { error: '无效的分类' });
+
+    const crawler = new MaccmsCrawler(DEFAULT_SITE);
+    const { animes } = await crawler.crawlCategory(DEFAULT_SITE.replace(/\/$/, '') + path);
+
+    // 同步入库（便于点进详情页）
+    for (const a of animes) {
+      req.app.locals.db.upsertAnime({ ...a, siteUrl: DEFAULT_SITE });
+    }
+
+    // 取回带 id 的记录
+    const enriched = animes.map(a => {
+      const dbAnime = req.app.locals.db.getAnimeBySourceId(a.sourceId, DEFAULT_SITE);
+      return { ...a, id: dbAnime ? dbAnime.id : null };
+    }).filter(a => a.id);
+
+    res.render('category', {
+      title: name + ' - 动漫分区',
+      categoryName: name,
+      animes: enriched,
+      categories: Object.keys(CATEGORY_MAP)
+    });
+  } catch (error) {
+    res.status(500).render('error', { error: error.message });
+  }
 });
 
 // B站风格画廊首页
@@ -30,6 +72,7 @@ router.get('/gallery', async (req, res) => {
       title: '动漫资源画廊',
       animes: enriched,
       categories,
+      menuCategories: Object.keys(CATEGORY_MAP),
       today: dateStr
     });
   } catch (error) {

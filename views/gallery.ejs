@@ -13,6 +13,13 @@
       flex-wrap: wrap; gap: 16px;
     }
     .gallery-header h1 { font-size: 24px; margin: 0; }
+    .main-nav { display: flex; gap: 6px; flex-wrap: wrap; }
+    .main-nav .nav-link {
+      padding: 7px 16px; border-radius: 8px; color: rgba(255,255,255,.8);
+      text-decoration: none; font-size: 14px; transition: all .2s;
+    }
+    .main-nav .nav-link:hover { background: rgba(255,255,255,.15); color: #fff; }
+    .main-nav .nav-link.active { background: #e7a519; color: #fff; }
     .today-badge { background: #e74c3c; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 13px; }
     .crawl-bar {
       padding: 16px 32px; background: #fffbe6; border-bottom: 1px solid #ffe58f;
@@ -91,6 +98,12 @@
       <h1>动漫画廊</h1>
       <span style="opacity:.7;font-size:13px">每日更新资源 · <%= today %></span>
     </div>
+    <nav class="main-nav">
+      <a href="/gallery" class="nav-link active">每日更新</a>
+      <% (menuCategories || []).forEach(cat => { %>
+        <a href="/category/<%= encodeURIComponent(cat) %>" class="nav-link"><%= cat %></a>
+      <% }); %>
+    </nav>
     <div style="display:flex;gap:12px;align-items:center">
       <span class="today-badge"><%= animes.length %> 部今日更新</span>
     </div>
