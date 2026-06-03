@@ -26,16 +26,20 @@ router.get('/category/:name', async (req, res) => {
     const crawler = new MaccmsCrawler(DEFAULT_SITE);
     const { animes } = await crawler.crawlCategory(DEFAULT_SITE.replace(/\/$/, '') + path);
 
-    // 同步入库（便于点进详情页）
+    // 入库：已存在的动漫保留其原有数据（每日更新信息、简介、分集等），
+    // 仅为新动漫插入基础记录以便点进详情页
+    const enriched = [];
     for (const a of animes) {
-      req.app.locals.db.upsertAnime({ ...a, siteUrl: DEFAULT_SITE });
+      let dbAnime = req.app.locals.db.getAnimeBySourceId(a.sourceId, DEFAULT_SITE);
+      if (!dbAnime) {
+        // 新动漫：插入基础信息，update_date 留空（非每日更新）
+        const id = req.app.locals.db.upsertAnime({
+          ...a, siteUrl: DEFAULT_SITE, updateDate: ''
+        });
+        dbAnime = { id };
+      }
+      enriched.push({ ...a, id: dbAnime.id });
     }
-
-    // 取回带 id 的记录
-    const enriched = animes.map(a => {
-      const dbAnime = req.app.locals.db.getAnimeBySourceId(a.sourceId, DEFAULT_SITE);
-      return { ...a, id: dbAnime ? dbAnime.id : null };
-    }).filter(a => a.id);
 
     res.render('category', {
       title: name + ' - 动漫分区',
@@ -83,11 +87,33 @@ router.get('/gallery', async (req, res) => {
 // 动漫详情页
 router.get('/anime/:id', async (req, res) => {
   try {
-    const anime = req.app.locals.db.getAnimeById(req.params.id);
+    let anime = req.app.locals.db.getAnimeById(req.params.id);
     if (!anime) return res.status(404).render('error', { error: '动漫未找到' });
 
+    let episodes = req.app.locals.db.getEpisodesByAnime(anime.id);
+
+    // 按需爬取详情：分类浏览来的动漫可能还没有分集/简介
+    if (episodes.length === 0 && anime.detail_url) {
+      try {
+        const crawler = new MaccmsCrawler(anime.site_url || DEFAULT_SITE);
+        const { anime: detail, episodes: eps } = await crawler.crawlDetail(anime.detail_url);
+        // 保留首页已有的封面/状态/更新日期
+        if (anime.cover) detail.cover = anime.cover;
+        if (anime.status) detail.status = anime.status;
+        detail.updateDate = anime.update_date || '';
+        req.app.locals.db.upsertAnime({ ...detail, siteUrl: anime.site_url || DEFAULT_SITE });
+        for (const cn of (detail.categoryNames || [])) {
+          const cid = req.app.locals.db.getOrCreateCategory(cn);
+          req.app.locals.db.linkAnimeCategory(anime.id, cid);
+        }
+        for (const ep of eps) req.app.locals.db.upsertEpisode(anime.id, ep);
+        // 重新读取
+        anime = req.app.locals.db.getAnimeById(req.params.id);
+        episodes = req.app.locals.db.getEpisodesByAnime(anime.id);
+      } catch (e) { /* 爬取失败则展示现有数据 */ }
+    }
+
     const categories = req.app.locals.db.getCategoriesByAnime(anime.id);
-    const episodes = req.app.locals.db.getEpisodesByAnime(anime.id);
 
     // 按线路分组
     const lines = {};
