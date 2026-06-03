@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .gallery-header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      padding: 24px 32px; color: #fff;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+    }
+    .gallery-header h1 { font-size: 24px; margin: 0; }
+    .today-badge { background: #e74c3c; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 13px; }
+    .crawl-bar {
+      padding: 16px 32px; background: #fffbe6; border-bottom: 1px solid #ffe58f;
+      display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    }
+    .crawl-bar input { flex: 1; min-width: 240px; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
+    .crawl-bar button { padding: 10px 20px; background: #e7a519; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; white-space: nowrap; }
+    .crawl-bar button:hover { background: #d4940f; }
+    .crawl-bar button:disabled { opacity: .6; cursor: not-allowed; }
+    .crawl-bar .crawl-msg { font-size: 13px; color: #666; }
+    .category-bar {
+      display: flex; gap: 8px; padding: 12px 32px; overflow-x: auto;
+      background: #f8f9fa; border-bottom: 1px solid #eee; flex-wrap: wrap;
+    }
+    .category-bar .cat-tag {
+      padding: 6px 16px; border-radius: 20px; cursor: pointer; white-space: nowrap; font-size: 13px;
+      background: #fff; border: 1px solid #ddd; color: #555; transition: all .2s; user-select: none;
+    }
+    .category-bar .cat-tag:hover, .category-bar .cat-tag.active {
+      background: #e7a519; color: #fff; border-color: #e7a519;
+    }
+    .category-bar .cat-tag .count { font-size: 11px; opacity: .7; margin-left: 4px; }
+    .anime-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 20px; padding: 24px 32px;
+    }
+    .anime-card {
+      background: #fff; border-radius: 10px; overflow: hidden; cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08); transition: transform .2s, box-shadow .2s;
+      text-decoration: none; color: inherit; display: block;
+    }
+    .anime-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,.15); }
+    .anime-card .cover-wrap {
+      position: relative; width: 100%; padding-top: 140%;
+      background: #e8e8e8; overflow: hidden;
+    }
+    .anime-card .cover-wrap img {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;
+      transition: transform .3s; background: #e8e8e8;
+    }
+    .anime-card:hover .cover-wrap img { transform: scale(1.05); }
+    .anime-card .cover-wrap .no-cover {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+      color: #aaa; font-size: 13px; text-align: center; padding: 20px;
+    }
+    .anime-card .score-badge {
+      position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,.7); color: #ffb300;
+      padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: bold;
+    }
+    .anime-card .status-badge {
+      position: absolute; bottom: 0; left: 0; padding: 5px 10px;
+      background: linear-gradient(transparent, rgba(0,0,0,.75)); color: #fff;
+      font-size: 12px; border-radius: 0 0 0 10px;
+    }
+    .anime-card .card-info { padding: 10px 12px 12px; }
+    .anime-card .card-title {
+      font-size: 14px; font-weight: 600; line-height: 1.4;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      overflow: hidden; color: #222;
+    }
+    .empty-state {
+      grid-column: 1 / -1; text-align: center; padding: 80px 20px; color: #999;
+    }
+    .loading { text-align: center; padding: 40px; color: #999; }
+    @media (max-width: 640px) {
+      .anime-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; padding: 12px; }
+      .gallery-header, .crawl-bar, .category-bar { padding-left: 12px; padding-right: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="gallery-header">
+    <div>
+      <h1>动漫画廊</h1>
+      <span style="opacity:.7;font-size:13px">每日更新资源 · <%= today %></span>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center">
+      <span class="today-badge"><%= animes.length %> 部今日更新</span>
+    </div>
+  </header>
+
+  <div class="crawl-bar">
+    <input type="text" id="crawlUrl" placeholder="输入动漫网站URL，如 https://m.tiantiandongman.com/" value="https://m.tiantiandongman.com/">
+    <button id="crawlBtn" onclick="doCrawl()">爬取资源</button>
+    <span class="crawl-msg" id="crawlMsg"></span>
+  </div>
+
+  <div class="category-bar" id="categoryBar">
+    <span class="cat-tag active" data-cat="">全部</span>
+    <% categories.forEach(cat => { %>
+      <span class="cat-tag" data-cat="<%= cat.name %>"><%= cat.name %><span class="count"><%= cat.anime_count %></span></span>
+    <% }); %>
+  </div>
+
+  <div class="anime-grid" id="animeGrid">
+    <% if (animes.length === 0) { %>
+      <div class="empty-state">
+        <p style="font-size:48px">📭</p>
+        <p>暂无今日更新的动漫</p>
+        <p style="font-size:13px">在上方输入动漫网站地址后点击"爬取资源"</p>
+      </div>
+    <% } else { %>
+      <% animes.forEach(a => { %>
+        <a class="anime-card" href="/anime/<%= a.id %>" data-cats="<%=
+          (a.categories||[]).map(c=>c.name).join(',')
+        %>">
+          <div class="cover-wrap">
+            <% if (a.cover) { %>
+              <img src="<%= a.cover %>" alt="<%= a.title %>" loading="lazy" referrerpolicy="no-referrer"
+                   onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+              <div class="no-cover" style="display:none"><%= a.title.slice(0,8) %></div>
+            <% } else { %>
+              <div class="no-cover"><%= a.title.slice(0,8) %></div>
+            <% } %>
+            <span class="score-badge"><%= a.score.toFixed(1) %></span>
+            <span class="status-badge"><%= a.status %></span>
+          </div>
+          <div class="card-info">
+            <div class="card-title"><%= a.title %></div>
+          </div>
+        </a>
+      <% }); %>
+    <% } %>
+  </div>
+
+  <script>
+    async function doCrawl() {
+      const url = document.getElementById('crawlUrl').value.trim();
+      if (!url) return;
+      const btn = document.getElementById('crawlBtn');
+      const msg = document.getElementById('crawlMsg');
+      btn.disabled = true;
+      btn.textContent = '爬取中...';
+      msg.textContent = '正在检测站点类型...';
+
+      try {
+        const detectResp = await fetch('/api/site/detect?url=' + encodeURIComponent(url));
+        const detectData = await detectResp.json();
+        if (!detectData.success) throw new Error(detectData.error);
+        msg.textContent = '站点类型: ' + detectData.data.type + ' | 开始爬取...';
+
+        const crawlResp = await fetch('/api/anime/crawl', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ siteUrl: url, filterToday: true, crawlDetails: true })
+        });
+        const crawlData = await crawlResp.json();
+        if (!crawlData.success) throw new Error(crawlData.error);
+
+        msg.textContent = '爬取完成！' + crawlData.data.todayCount + ' 部今日更新，正在加载详情...';
+
+        // 等待详情爬取完成后刷新
+        setTimeout(() => {
+          msg.textContent = '详情加载中，请稍候...';
+        }, 3000);
+        setTimeout(() => {
+          location.reload();
+        }, 15000);
+      } catch (e) {
+        msg.textContent = '错误: ' + e.message;
+        btn.disabled = false;
+        btn.textContent = '爬取资源';
+      }
+    }
+  </script>
+  <script src="/js/gallery.js"></script>
+</body>
+</html>

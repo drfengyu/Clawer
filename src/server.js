@@ -34,9 +34,11 @@ async function startServer() {
   // 路由
   const pageRoutes = require('./routes/pages');
   const apiRoutes = require('./routes/api');
+  const animeRoutes = require('./routes/animeRoutes');
 
   app.use('/', pageRoutes);
   app.use('/api', apiRoutes);
+  app.use('/api', animeRoutes);
 
   // 404 处理
   app.use((req, res) => {
@@ -60,6 +62,9 @@ async function startServer() {
 ║                                                       ║
 ╚═══════════════════════════════════════════════════════╝
     `);
+
+    // 启动每日自动更新调度器
+    startDailyCrawlScheduler(db);
   });
 
   // 优雅退出
@@ -68,6 +73,74 @@ async function startServer() {
     db.close();
     process.exit(0);
   });
+}
+
+// 每日自动爬取调度器
+function startDailyCrawlScheduler(db) {
+  const DEFAULT_SITE = 'https://m.tiantiandongman.com/';
+  let lastCrawlDate = '';
+
+  async function tryDailyCrawl() {
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const hour = today.getHours();
+
+    // 每天 8-9 点之间触发一次，每天只爬一次
+    if (hour === 8 && lastCrawlDate !== dateStr) {
+      lastCrawlDate = dateStr;
+      console.log(`[每日更新] 开始自动爬取 ${dateStr}...`);
+      try {
+        const { SiteDetector } = require('./crawlers/siteDetector');
+        const MaccmsCrawler = require('./crawlers/maccmsCrawler');
+        const detector = new SiteDetector();
+        const { type } = await detector.detect(DEFAULT_SITE);
+
+        if (type === 'maccms') {
+          const crawler = new MaccmsCrawler(DEFAULT_SITE);
+          const { animes, categories } = await crawler.crawlHomepage(true);
+
+          for (const cat of categories) db.getOrCreateCategory(cat.name);
+          for (const a of animes) {
+            const id = db.upsertAnime({ ...a, siteUrl: DEFAULT_SITE });
+            if (a.categoryName) {
+              const catId = db.getOrCreateCategory(a.categoryName);
+              db.linkAnimeCategory(id, catId);
+            }
+          }
+
+          // 异步爬详情
+          const crawlDetails = require('./routes/animeRoutes')._crawlDetailsForScheduler
+            || (async (db2, list, site) => {
+              const MaccmsCrawler2 = require('./crawlers/maccmsCrawler');
+              const c = new MaccmsCrawler2(site);
+              for (const a of list) {
+                try {
+                  const { anime, episodes } = await c.crawlDetail(a.detailUrl);
+                  const existing = db2.getAnimeBySourceId ? db2.getAnimeBySourceId(anime.sourceId, site) : null;
+                  if (existing && existing.cover && anime.cover) anime.cover = existing.cover;
+                  const aid = db2.upsertAnime({ ...anime, siteUrl: site });
+                  for (const cn of (anime.categoryNames || [])) {
+                    const ci = db2.getOrCreateCategory(cn);
+                    db2.linkAnimeCategory(aid, ci);
+                  }
+                  db2.deleteAnimeEpisodes(aid);
+                  for (const ep of episodes) db2.upsertEpisode(aid, ep);
+                } catch (e) { /* skip failed details */ }
+              }
+            });
+          crawlDetails(db, animes, DEFAULT_SITE);
+
+          console.log(`[每日更新] 完成！${animes.length} 部今日更新`);
+        }
+      } catch (e) {
+        console.error('[每日更新] 爬取失败:', e.message);
+      }
+    }
+  }
+
+  // 每 30 分钟检查一次
+  tryDailyCrawl();
+  setInterval(tryDailyCrawl, 30 * 60 * 1000);
 }
 
 startServer().catch(err => {

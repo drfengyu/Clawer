@@ -42,10 +42,16 @@
 
                 <% if (resource.file_path) { %>
                   <div class="resource-info">
-                    <p><strong>文件:</strong> <%= resource.file_path %></p>
-                    <p><strong>大小:</strong> <%= (resource.file_size / 1024).toFixed(2) %> KB</p>
+                    <% if (resource.file_path.startsWith('magnet:')) { %>
+                      <p><strong>磁力链:</strong></p>
+                      <p class="magnet-link"><%= resource.file_path.slice(0, 80) %>...</p>
+                      <button class="btn btn-copy" onclick="copyMagnet('<%= resource.file_path.replace(/'/g, "\\'") %>')">📋 复制磁力链</button>
+                    <% } else { %>
+                      <p><strong>文件:</strong> <%= resource.file_path %></p>
+                      <p><strong>大小:</strong> <%= (resource.file_size / 1024).toFixed(2) %> KB</p>
+                      <a href="/<%= resource.file_path %>" class="btn btn-download" download>下载</a>
+                    <% } %>
                   </div>
-                  <a href="/<%= resource.file_path %>" class="btn btn-download" download>下载</a>
                 <% } %>
               </div>
 

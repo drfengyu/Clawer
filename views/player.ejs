@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dplayer/dist/DPlayer.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0a; color: #ccc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; }
+    .player-wrapper { max-width: 1100px; margin: 0 auto; padding: 20px 16px 40px; }
+    .player-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 0 16px; flex-wrap: wrap; gap: 10px; }
+    .player-header .back-link { color: #888; text-decoration: none; font-size: 14px; }
+    .player-header .back-link:hover { color: #e7a519; }
+    .player-header h2 { font-size: 18px; color: #fff; font-weight: 500; }
+    #dplayer { border-radius: 8px; overflow: hidden; background: #000; }
+    .ep-nav { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; align-items: center; }
+    .ep-nav a { display: inline-flex; align-items: center; gap: 4px; padding: 8px 18px; border-radius: 8px; background: #222; color: #ddd; text-decoration: none; font-size: 14px; transition: all .2s; border: 1px solid #333; }
+    .ep-nav a:hover { background: #e7a519; color: #fff; border-color: #e7a519; }
+    .ep-nav .current-ep { background: #333; color: #fff; border-color: #555; padding: 8px 18px; border-radius: 8px; font-size: 14px; }
+    .ep-nav .btn-download { margin-left: auto; background: #2d5016; border-color: #3a6b1e; color: #8bc34a; }
+    .ep-nav .btn-download:hover { background: #3a6b1e; color: #fff; }
+    .player-info { margin-top: 20px; padding: 16px; background: #1a1a1a; border-radius: 8px; font-size: 13px; color: #888; }
+    @media (max-width: 640px) {
+      .player-wrapper { padding: 10px; }
+      .player-header h2 { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="player-wrapper">
+    <div class="player-header">
+      <div>
+        <a href="/anime/<%= anime.id %>" class="back-link">&#8592; 返回详情</a>
+      </div>
+      <h2><%= anime.title %> - <%= episode.label || ('第'+String(episode.ep_number).padStart(2,'0')+'集') %></h2>
+      <div></div>
+    </div>
+
+    <div id="dplayer"></div>
+
+    <div class="ep-nav">
+      <% if (prevEp) { %>
+        <a href="/play/<%= prevEp.id %>">&#9664; <%= prevEp.label || ('第'+String(prevEp.ep_number).padStart(2,'0')+'集') %></a>
+      <% } else { %>
+        <span style="color:#555;font-size:14px;padding:8px">已是最前</span>
+      <% } %>
+      <span class="current-ep"><%= episode.label || ('第'+String(episode.ep_number).padStart(2,'0')+'集') %></span>
+      <% if (nextEp) { %>
+        <a href="/play/<%= nextEp.id %>"><%= nextEp.label || ('第'+String(nextEp.ep_number).padStart(2,'0')+'集') %> &#9654;</a>
+      <% } else { %>
+        <span style="color:#555;font-size:14px;padding:8px">已是最后</span>
+      <% } %>
+      <a class="btn-download" href="javascript:downloadEpisode(<%= episode.id %>)">&#10597; 下载本集</a>
+    </div>
+
+    <div class="player-info">
+      <strong>线路：</strong><%= episode.line_name %> &nbsp;|&nbsp;
+      <strong>来源：</strong><%= anime.site_url %> &nbsp;|&nbsp;
+      <strong>播放页：</strong><a href="<%= episode.play_url %>" target="_blank" style="color:#e7a519"><%= episode.play_url %></a>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dplayer/dist/DPlayer.min.js"></script>
+  <script src="/js/player.js"></script>
+  <script>
+    // 初始化播放器
+    const episodeId = <%= episode.id %>;
+    initPlayer(episodeId);
+
+    async function downloadEpisode(epId) {
+      try {
+        const resp = await fetch('/api/anime/episode/' + epId + '/download', { method: 'POST' });
+        const data = await resp.json();
+        if (data.success) alert('下载任务已提交，完成后将出现在下载目录');
+        else alert('下载失败: ' + (data.error || '未知错误'));
+      } catch (e) {
+        alert('提交下载失败: ' + e.message);
+      }
+    }
+  </script>
+</body>
+</html>

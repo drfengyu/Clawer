@@ -22,19 +22,11 @@ async function deleteResource(id) {
   }
 }
 
-// 自动刷新处理中的任务
-function autoRefresh() {
-  const processingCards = document.querySelectorAll('.resource-card[data-status="processing"], .resource-card[data-status="pending"]');
-
-  if (processingCards.length > 0) {
-    // 每5秒刷新一次
-    setTimeout(() => {
-      location.reload();
-    }, 5000);
-  }
+// 复制磁力链到剪贴板
+function copyMagnet(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    alert('✅ 磁力链已复制到剪贴板');
+  }).catch(() => {
+    prompt('请手动复制:', text);
+  });
 }
-
-// 页面加载完成后执行
-document.addEventListener('DOMContentLoaded', () => {
-  autoRefresh();
-});

@@ -1,19 +1,25 @@
 # Media Crawler - 媒体资源爬虫管理系统
 
-一个基于 Node.js 的爬虫系统，用于抓取和管理免费的音频、视频、图片资源。
+一个基于 Node.js 的爬虫系统，支持智能识别网站类型，抓取并管理音视频图片资源。内置 **B站风格动漫画廊** 与 **在线播放器**，可爬取动漫站每日更新、分集播放与下载。
 
 ## 🌟 功能特性
 
+### 通用爬虫
 - 🎵 爬取免费音频资源
-- 🎬 爬取免费视频资源
+- 🎬 爬取免费视频资源（HTML5 / 磁力链）
 - 🖼️ 爬取图片资源
-- 💾 资源本地下载和管理
-- 🌐 Web 管理界面
-- 📊 资源数据库管理
-- 📜 爬取历史记录
-- 📈 统计信息展示
-- 🔍 资源搜索功能
-- 📡 完整的 RESTful API
+- 🛡️ 自动绕过"自动通过型"人机验证墙（如 comicat 的 visitor-test）
+- 🧲 BT 磁力链提取与复制
+
+### 动漫站点（maccms 类型）
+- 🔍 **站点类型自动检测**（comicat / maccms / 通用站）
+- 📅 **每日更新爬取** — 只抓取首页"每日更新"分区
+- 🎴 **B站风格画廊** — 封面网格 + 评分 + 更新状态
+- 📺 **在线播放** — DPlayer + hls.js 播放 m3u8/mp4 直链
+- 🎬 **分集 + 多线路** — 详情页选集，当天更新集自动高亮
+- 📋 **元数据展示** — 名称/主演/类型/地区/语言/首播
+- ⬇️ **m3u8 下载** — ffmpeg 合并为 mp4
+- ⏰ **每日自动更新** — 内置调度器，每天 8 点自动爬取
 
 ## 🚀 快速开始
 
@@ -22,6 +28,8 @@
 ```bash
 npm install
 ```
+
+> 在线播放与下载功能需系统安装 [ffmpeg](https://ffmpeg.org/)（用于 m3u8 → mp4）。
 
 ### 配置环境
 
@@ -45,30 +53,57 @@ npm start
 npm run dev
 ```
 
-服务器将在 `http://localhost:3000` 启动
+服务器将在 `http://localhost:3000` 启动，首页自动跳转到动漫画廊 `/gallery`。
 
 ## 📖 使用指南
 
-### Web 界面
+### 动漫画廊（推荐）
 
-1. **首页**: http://localhost:3000
-   - 添加爬取任务
-   - 查看功能介绍
+1. **画廊首页**: http://localhost:3000/gallery
+   - 顶部输入动漫站 URL（如 `https://m.tiantiandongman.com/`）点击"爬取资源"
+   - 卡片网格展示每日更新动漫（封面 + 评分 + 更新状态）
+   - 按分类（日漫/国漫/美漫/动漫剧场）筛选
 
-2. **资源列表**: http://localhost:3000/resources
-   - 查看所有资源
-   - 下载资源
-   - 删除资源
+2. **详情页**: http://localhost:3000/anime/:id
+   - 封面、评分、简介、元数据（主演/类型/地区/语言/首播）
+   - 多线路切换 + 分集列表，当天更新集高亮标记 NEW
 
-3. **API 演示**: http://localhost:3000/api-demo.html
-   - 在线测试所有API
-   - 查看实时统计
+3. **播放页**: http://localhost:3000/play/:episodeId
+   - DPlayer 播放器，支持 m3u8/mp4
+   - 上一集 / 下一集导航
+   - 下载本集（m3u8 → mp4）
+
+### 通用爬虫
+
+1. **资源列表**: http://localhost:3000/resources
+   - 查看爬取的图片/视频/磁力链资源
 
 ### API 使用
 
 详细的 API 文档请查看 [API.md](./API.md)
 
-#### 快速示例
+#### 动漫 API
+
+```bash
+# 检测站点类型
+curl "http://localhost:3000/api/site/detect?url=https://m.tiantiandongman.com/"
+
+# 爬取每日更新（含分集详情）
+curl -X POST http://localhost:3000/api/anime/crawl \
+  -H "Content-Type: application/json" \
+  -d '{"siteUrl":"https://m.tiantiandongman.com/","filterToday":true,"crawlDetails":true}'
+
+# 获取每日更新列表
+curl http://localhost:3000/api/anime/daily
+
+# 获取动漫详情（含分集）
+curl http://localhost:3000/api/anime/1
+
+# 解析分集播放地址（m3u8）
+curl http://localhost:3000/api/anime/episode/1/play
+```
+
+#### 通用爬虫 API
 
 ```bash
 # 添加爬取任务
@@ -78,49 +113,32 @@ curl -X POST http://localhost:3000/api/crawl \
 
 # 获取所有资源
 curl http://localhost:3000/api/resources
-
-# 搜索资源
-curl "http://localhost:3000/api/search?q=example"
-
-# 获取统计信息
-curl http://localhost:3000/api/stats
-
-# 获取爬取历史
-curl http://localhost:3000/api/history
-```
-
-#### API 测试脚本
-
-```bash
-# JavaScript
-node test-api.js
-
-# Python
-python test-api.py
-
-# Bash
-bash test-api.sh
 ```
 
 ## 📡 API 接口
 
-### 资源管理
+### 动漫站点
+- `GET /api/site/detect?url=` - 站点类型检测
+- `POST /api/anime/crawl` - 爬取每日更新动漫
+- `GET /api/anime/daily` - 获取每日更新列表
+- `GET /api/anime/:id` - 获取动漫详情（含分集）
+- `GET /api/anime/search?q=` - 搜索动漫
+- `GET /api/anime/episode/:epId/play` - 解析分集播放地址
+- `POST /api/anime/episode/:epId/refresh` - 强制刷新播放地址
+- `POST /api/anime/episode/:epId/download` - 下载分集（m3u8→mp4）
+- `GET /api/categories` - 获取分类列表
+
+### 资源管理（通用）
 - `GET /api/resources` - 获取所有资源
 - `GET /api/resources/:id` - 根据ID获取资源
 - `GET /api/resources/type/:type` - 根据类型获取资源
-- `GET /api/resources/status/:status` - 根据状态获取资源
 - `POST /api/crawl` - 添加爬取任务
 - `DELETE /api/resources/:id` - 删除资源
 
-### 搜索与过滤
+### 搜索与统计
 - `GET /api/search?q=keyword` - 搜索资源
-
-### 历史与统计
 - `GET /api/history` - 获取爬取历史
 - `GET /api/stats` - 获取统计信息
-
-### 下载
-- `GET /api/download/:id` - 获取下载信息
 
 完整的 API 文档请查看 [API.md](./API.md)
 
@@ -130,50 +148,58 @@ bash test-api.sh
 - **爬虫**: Axios + Cheerio
 - **数据库**: SQLite (sql.js)
 - **前端**: HTML + CSS + JavaScript + EJS
+- **播放器**: DPlayer + hls.js（CDN 引入）
+- **下载**: ffmpeg（m3u8 → mp4）
 
 ## 📁 项目结构
 
 ```
-pachong/
+Clawer/
 ├── src/
-│   ├── server.js              # 服务器入口
+│   ├── server.js              # 服务器入口 + 每日自动更新调度器
 │   ├── crawlers/
-│   │   └── baseCrawler.js     # 爬虫核心逻辑
+│   │   ├── baseCrawler.js     # 通用爬虫（反爬绕过、磁力链）
+│   │   ├── siteDetector.js    # 站点类型检测
+│   │   └── maccmsCrawler.js   # maccms 动漫站爬虫
 │   ├── routes/
-│   │   ├── pages.js           # 页面路由
-│   │   └── api.js             # API 路由
+│   │   ├── pages.js           # 页面路由（画廊/详情/播放）
+│   │   ├── api.js             # 通用 API 路由
+│   │   └── animeRoutes.js     # 动漫 API 路由
 │   ├── database/
-│   │   └── db.js              # 数据库操作
+│   │   └── db.js              # 数据库操作（resources + animes 系列表）
 │   └── utils/
-│       └── downloader.js      # 下载工具
+│       └── downloader.js      # 下载工具（HTTP + m3u8）
 ├── views/                     # EJS 模板
-│   ├── index.ejs              # 首页
-│   ├── resources.ejs          # 资源列表
+│   ├── gallery.ejs            # B站风格画廊
+│   ├── detail.ejs             # 动漫详情页
+│   ├── player.ejs             # 在线播放页
+│   ├── resources.ejs          # 通用资源列表
 │   └── error.ejs              # 错误页
 ├── public/                    # 静态资源
-│   ├── css/style.css          # 样式
-│   ├── js/
-│   │   ├── main.js            # 首页脚本
-│   │   └── resources.js       # 资源页脚本
-│   └── api-demo.html          # API 演示页面
-├── downloads/                 # 下载目录
-│   ├── image/
-│   ├── video/
-│   └── audio/
-├── test-api.js                # API 测试脚本 (JS)
-├── test-api.py                # API 测试脚本 (Python)
-├── test-api.sh                # API 测试脚本 (Bash)
+│   ├── css/style.css
+│   └── js/
+│       ├── gallery.js         # 画廊筛选
+│       ├── detail.js          # 选集切换
+│       ├── player.js          # DPlayer 初始化
+│       └── resources.js
+├── downloads/                 # 下载目录（image/video/audio）
 ├── package.json
-├── .env                       # 环境配置
-├── README.md                  # 项目说明
-├── API.md                     # API 文档
-├── USAGE.md                   # 使用教程
-└── TEST.md                    # 测试指南
+├── README.md
+└── API.md
 ```
+
+## 🗄️ 数据库结构
+
+动漫数据独立于通用 `resources` 表：
+
+- `animes` — 动漫主表（标题/封面/评分/状态/简介/元数据）
+- `anime_categories` — 分类
+- `anime_category_links` — 动漫-分类关联
+- `anime_episodes` — 分集（线路/集数/播放页/视频地址）
 
 ## ⚠️ 重要提示
 
-本项目**仅用于爬取公开的免费资源**，请务必遵守：
+本项目**仅用于学习和研究**，请务必遵守：
 
 - ✅ 目标网站的 robots.txt 规则
 - ✅ 相关法律法规
@@ -182,44 +208,9 @@ pachong/
 
 **禁止用于：**
 - ❌ 爬取有版权保护的商业内容
-- ❌ 绕过技术保护措施
+- ❌ 绕过技术保护措施用于非法目的
 - ❌ 侵犯他人合法权益
 - ❌ 任何非法用途
-
-## 📚 文档
-
-- [API 文档](./API.md) - 完整的 API 接口说明
-- [使用指南](./USAGE.md) - 详细的使用教程
-- [测试指南](./TEST.md) - 测试和调试说明
-- [项目总结](./SUMMARY.md) - 功能总结和注意事项
-
-## 🔧 开发
-
-### 安装开发依赖
-
-```bash
-npm install
-```
-
-### 运行测试
-
-```bash
-# 测试爬虫功能
-node test-crawler.js
-
-# 测试 API
-node test-api.js
-```
-
-### 调试
-
-```bash
-# 启动开发模式
-npm run dev
-
-# 查看日志
-tail -f server.log
-```
 
 ## 🐛 故障排查
 
@@ -235,49 +226,18 @@ lsof -i :3000
 kill -9 <PID>
 ```
 
+### 在线播放/下载失败
+
+1. 确认系统已安装 ffmpeg（`ffmpeg -version`）
+2. m3u8 地址有时效性，可在播放器右键"刷新播放地址"
+3. 部分 CDN 可能有跨域限制
+
 ### 爬取失败
 
 1. 检查 URL 是否正确
-2. 确认目标网页包含对应类型的媒体资源
-3. 某些网站可能有反爬虫机制
+2. 确认目标站点为支持的类型（maccms / comicat）
+3. 某些网站有反爬虫机制
 4. 查看控制台错误日志
-
-## 📈 统计功能
-
-系统会自动记录：
-- 总爬取次数
-- 成功/失败次数
-- 总下载次数
-- 总下载大小
-- 完整的爬取历史
-
-访问 `/api/stats` 查看统计信息。
-
-## 🔍 搜索功能
-
-支持根据 URL 和标题搜索资源：
-
-```bash
-curl "http://localhost:3000/api/search?q=关键词"
-```
-
-## 📜 历史记录
-
-每次爬取都会自动记录：
-- 爬取的 URL
-- 资源类型
-- 成功/失败状态
-- 找到的资源数量
-- 错误信息（如果失败）
-
-访问 `/api/history` 查看历史记录。
-
-## 💡 使用建议
-
-1. **学习目的**: 用于学习爬虫技术和 Web 开发
-2. **合法资源**: 只爬取允许的公开内容
-3. **尊重版权**: 不要用于商业用途
-4. **控制频率**: 避免给目标网站造成压力
 
 ## 📄 许可证
 

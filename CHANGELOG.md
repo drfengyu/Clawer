@@ -1,5 +1,44 @@
 # 更新日志
 
+## [v3.0.0] - 2026-06-03
+
+### ✨ 新增功能
+
+#### 动漫站点支持（maccms 类型）
+- ✅ 站点类型自动检测（comicat / maccms / 通用站）— `GET /api/site/detect`
+- ✅ 每日更新爬取（只抓取首页"每日更新"分区）— `POST /api/anime/crawl`
+- ✅ B站风格画廊界面（封面网格 + 评分 + 更新状态）— `/gallery`
+- ✅ 动漫详情页（简介 + 元数据 + 多线路选集）— `/anime/:id`
+- ✅ 在线播放（DPlayer + hls.js 播放 m3u8/mp4）— `/play/:epId`
+- ✅ 分集播放地址实时解析与缓存 — `GET /api/anime/episode/:epId/play`
+- ✅ 元数据展示（名称/主演/类型/地区/语言/首播）
+- ✅ 当天更新集自动高亮 + NEW 标记 + 自动滚动定位
+- ✅ m3u8 视频下载（ffmpeg → mp4）— `POST /api/anime/episode/:epId/download`
+- ✅ 每日自动更新调度器（每天 8 点自动爬取）
+
+#### 通用爬虫增强
+- ✅ 自动绕过"自动通过型"人机验证墙（comicat visitor-test）
+- ✅ 按域名持久化 Cookie
+- ✅ BT 磁力链提取与复制
+
+### 🔧 改进
+
+#### 数据库
+- ✅ 新增 animes / anime_categories / anime_category_links / anime_episodes 四张表
+- ✅ animes 表新增 meta 字段存储结构化元数据
+
+#### 爬虫
+- ✅ 只爬取每日更新分区，避免混入分类区内容
+- ✅ 状态规范化（"第5集" → "更新至第5集"）
+- ✅ 简介从裸文本节点提取（兼容多种页面结构）
+- ✅ 详情页保留首页的封面/状态/标题（更准确）
+
+### 📝 文档更新
+- ✅ 更新 README.md（动漫画廊与播放器使用说明）
+- ✅ 新增 v3.0.0 更新日志
+
+---
+
 ## [v2.0.0] - 2024-06-03
 
 ### ✨ 新增功能

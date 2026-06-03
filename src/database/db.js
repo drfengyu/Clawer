@@ -78,6 +78,12 @@ class Db {
       this.db.run(createHistoryTable);
       this.db.run(createStatsTable);
 
+      // 动漫相关表
+      this.db.run(this._getAnimeTableDDL());
+      this.db.run(this._getCategoryTableDDL());
+      this.db.run(this._getCategoryLinkTableDDL());
+      this.db.run(this._getEpisodeTableDDL());
+
       // 初始化统计数据
       const checkStats = this.db.exec('SELECT COUNT(*) as count FROM crawl_stats');
       if (checkStats.length === 0 || checkStats[0].values[0][0] === 0) {
@@ -318,7 +324,236 @@ class Db {
     });
   }
 
-  // 关闭数据库
+  // ─── Anime DDL ──────────────────────────────────────────
+
+  _getAnimeTableDDL() {
+    return `CREATE TABLE IF NOT EXISTS animes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      source_id TEXT NOT NULL,
+      site_url TEXT NOT NULL,
+      title TEXT NOT NULL,
+      cover TEXT,
+      score REAL DEFAULT 0,
+      status TEXT,
+      description TEXT,
+      meta TEXT DEFAULT '',
+      update_date TEXT,
+      detail_url TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(source_id, site_url)
+    )`;
+  }
+
+  _getCategoryTableDDL() {
+    return `CREATE TABLE IF NOT EXISTS anime_categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE
+    )`;
+  }
+
+  _getCategoryLinkTableDDL() {
+    return `CREATE TABLE IF NOT EXISTS anime_category_links (
+      anime_id INTEGER NOT NULL,
+      category_id INTEGER NOT NULL,
+      PRIMARY KEY (anime_id, category_id),
+      FOREIGN KEY (anime_id) REFERENCES animes(id) ON DELETE CASCADE,
+      FOREIGN KEY (category_id) REFERENCES anime_categories(id) ON DELETE CASCADE
+    )`;
+  }
+
+  _getEpisodeTableDDL() {
+    return `CREATE TABLE IF NOT EXISTS anime_episodes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      anime_id INTEGER NOT NULL,
+      line_name TEXT NOT NULL,
+      ep_number INTEGER NOT NULL,
+      label TEXT,
+      play_url TEXT,
+      video_url TEXT,
+      video_url_next TEXT,
+      download_path TEXT,
+      download_status TEXT DEFAULT '',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (anime_id) REFERENCES animes(id) ON DELETE CASCADE
+    )`;
+  }
+
+  // ─── Anime CRUD ─────────────────────────────────────────
+
+  upsertAnime(data) {
+    const existing = this.db.exec(
+      'SELECT id FROM animes WHERE source_id = ? AND site_url = ?',
+      [data.sourceId, data.siteUrl]
+    );
+    if (existing.length > 0 && existing[0].values.length > 0) {
+      const id = existing[0].values[0][0];
+      this.db.run(
+        `UPDATE animes SET title=?, cover=?, score=?, status=?, description=?, meta=?, update_date=?, detail_url=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+        [data.title, data.cover, data.score, data.status, data.description || '', data.meta || '', data.updateDate || '', data.detailUrl || '', id]
+      );
+      return id;
+    }
+    this.db.run(
+      `INSERT INTO animes (source_id, site_url, title, cover, score, status, description, meta, update_date, detail_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [data.sourceId, data.siteUrl, data.title, data.cover, data.score, data.status, data.description || '', data.meta || '', data.updateDate || '', data.detailUrl || '']
+    );
+    const res = this.db.exec('SELECT last_insert_rowid() as id');
+    this.save();
+    return res[0].values[0][0];
+  }
+
+  getAnimeById(id) {
+    const res = this.db.exec('SELECT * FROM animes WHERE id = ?', [id]);
+    if (res.length === 0 || res[0].values.length === 0) return null;
+    return this._rowToObj(res[0].columns, res[0].values[0]);
+  }
+
+  getAnimeBySourceId(sourceId, siteUrl) {
+    const res = this.db.exec('SELECT * FROM animes WHERE source_id = ? AND site_url = ?', [sourceId, siteUrl]);
+    if (res.length === 0 || res[0].values.length === 0) return null;
+    return this._rowToObj(res[0].columns, res[0].values[0]);
+  }
+
+  getAllAnimes(opts = {}) {
+    const { category, sort = 'update_date', order = 'DESC', limit = 50, offset = 0 } = opts;
+    let sql = 'SELECT DISTINCT a.* FROM animes a';
+    const params = [];
+    if (category) {
+      sql += ' JOIN anime_category_links acl ON a.id = acl.anime_id JOIN anime_categories ac ON acl.category_id = ac.id WHERE ac.name = ?';
+      params.push(category);
+    }
+    const validSort = ['update_date', 'score', 'title', 'created_at'].includes(sort) ? sort : 'update_date';
+    sql += ` ORDER BY a.${validSort} ${order === 'ASC' ? 'ASC' : 'DESC'} LIMIT ? OFFSET ?`;
+    params.push(limit, offset);
+    const res = this.db.exec(sql, params);
+    if (res.length === 0 || res[0].values.length === 0) return [];
+    return res[0].values.map(row => this._rowToObj(res[0].columns, row));
+  }
+
+  getAnimesByUpdateDate(dateStr) {
+    const res = this.db.exec(
+      'SELECT DISTINCT a.* FROM animes a WHERE a.update_date LIKE ? ORDER BY a.score DESC LIMIT 100',
+      [`%${dateStr}%`]
+    );
+    if (res.length === 0 || res[0].values.length === 0) return [];
+    return res[0].values.map(row => this._rowToObj(res[0].columns, row));
+  }
+
+  searchAnimes(keyword) {
+    const res = this.db.exec(
+      'SELECT * FROM animes WHERE title LIKE ? OR description LIKE ? ORDER BY update_date DESC LIMIT 50',
+      [`%${keyword}%`, `%${keyword}%`]
+    );
+    if (res.length === 0 || res[0].values.length === 0) return [];
+    return res[0].values.map(row => this._rowToObj(res[0].columns, row));
+  }
+
+  // ─── Category CRUD ──────────────────────────────────────
+
+  getOrCreateCategory(name) {
+    // 拒绝明显污染的类别名（长度 > 6 的一般是整段 HTML 文本）
+    if (!name || name.length > 6) return null;
+    const existing = this.db.exec('SELECT id FROM anime_categories WHERE name = ?', [name]);
+    if (existing.length > 0 && existing[0].values.length > 0) return existing[0].values[0][0];
+    this.db.run('INSERT INTO anime_categories (name) VALUES (?)', [name]);
+    const res = this.db.exec('SELECT last_insert_rowid() as id');
+    this.save();
+    return res[0].values[0][0];
+  }
+
+  linkAnimeCategory(animeId, categoryId) {
+    if (!categoryId) return;
+    try {
+      this.db.run('INSERT OR IGNORE INTO anime_category_links (anime_id, category_id) VALUES (?, ?)', [animeId, categoryId]);
+    } catch (e) { /* ignore duplicate */ }
+  }
+
+  getCategoriesByAnime(animeId) {
+    const res = this.db.exec(
+      'SELECT ac.* FROM anime_categories ac JOIN anime_category_links acl ON ac.id = acl.category_id WHERE acl.anime_id = ?',
+      [animeId]
+    );
+    if (res.length === 0 || res[0].values.length === 0) return [];
+    return res[0].values.map(row => this._rowToObj(res[0].columns, row));
+  }
+
+  getAllCategories() {
+    const res = this.db.exec('SELECT ac.*, COUNT(acl.anime_id) as anime_count FROM anime_categories ac LEFT JOIN anime_category_links acl ON ac.id = acl.category_id GROUP BY ac.id ORDER BY anime_count DESC');
+    if (res.length === 0 || res[0].values.length === 0) return [];
+    return res[0].values.map(row => this._rowToObj(res[0].columns, row));
+  }
+
+  // ─── Episode CRUD ───────────────────────────────────────
+
+  upsertEpisode(animeId, data) {
+    const existing = this.db.exec(
+      'SELECT id FROM anime_episodes WHERE anime_id = ? AND ep_number = ? AND line_name = ?',
+      [animeId, data.epNumber, data.lineName]
+    );
+    if (existing.length > 0 && existing[0].values.length > 0) {
+      const id = existing[0].values[0][0];
+      this.db.run(
+        'UPDATE anime_episodes SET label=?, play_url=?, video_url=?, video_url_next=? WHERE id=?',
+        [data.label || '', data.playUrl || '', data.videoUrl || '', data.videoUrlNext || '', id]
+      );
+      return id;
+    }
+    this.db.run(
+      'INSERT INTO anime_episodes (anime_id, line_name, ep_number, label, play_url, video_url, video_url_next) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [animeId, data.lineName, data.epNumber, data.label || '', data.playUrl || '', data.videoUrl || '', data.videoUrlNext || '']
+    );
+    const res = this.db.exec('SELECT last_insert_rowid() as id');
+    this.save();
+    return res[0].values[0][0];
+  }
+
+  getEpisodesByAnime(animeId) {
+    const res = this.db.exec(
+      'SELECT * FROM anime_episodes WHERE anime_id = ? ORDER BY line_name, ep_number',
+      [animeId]
+    );
+    if (res.length === 0 || res[0].values.length === 0) return [];
+    return res[0].values.map(row => this._rowToObj(res[0].columns, row));
+  }
+
+  getEpisodeById(epId) {
+    const res = this.db.exec('SELECT * FROM anime_episodes WHERE id = ?', [epId]);
+    if (res.length === 0 || res[0].values.length === 0) return null;
+    return this._rowToObj(res[0].columns, res[0].values[0]);
+  }
+
+  updateEpisodeVideoUrl(epId, videoUrl, videoUrlNext = '') {
+    this.db.run(
+      'UPDATE anime_episodes SET video_url = ?, video_url_next = ? WHERE id = ?',
+      [videoUrl, videoUrlNext, epId]
+    );
+    this.save();
+  }
+
+  updateEpisodeDownloadStatus(epId, status, path = '') {
+    this.db.run(
+      'UPDATE anime_episodes SET download_status = ?, download_path = ? WHERE id = ?',
+      [status, path, epId]
+    );
+    this.save();
+  }
+
+  deleteAnimeEpisodes(animeId) {
+    this.db.run('DELETE FROM anime_episodes WHERE anime_id = ?', [animeId]);
+    this.save();
+  }
+
+  // ─── Helper ─────────────────────────────────────────────
+
+  _rowToObj(columns, values) {
+    const obj = {};
+    columns.forEach((col, i) => { obj[col] = values[i]; });
+    return obj;
+  }
+
+  // ─── Close ──────────────────────────────────────────────
   close() {
     this.save();
     this.db.close();
