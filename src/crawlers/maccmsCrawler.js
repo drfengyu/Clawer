@@ -74,7 +74,10 @@ class MaccmsCrawler extends BaseCrawler {
     const html = await this.fetchPage(detailUrl);
     const $ = this.parseHTML(html);
 
-    const title = $('title').text().replace(/ - .*/, '').trim();
+    const title = $('title').text()
+      .replace(/ - .*/, '')      // 去掉 " - 天天动漫"
+      .replace(/\s*\|.*/, '')    // 去掉 " | 日本动漫大全"
+      .trim();
     const cover = $('.list-poster img, .detail-poster img, .vod-poster img').first().attr('data-original')
       || $('.list-poster img, .detail-poster img, .vod-poster img').first().attr('src')
       || '';
@@ -223,8 +226,11 @@ class MaccmsCrawler extends BaseCrawler {
         || $el.find('.zhuangtai').text().trim();
       // 规范化："第5集" → "更新至第5集"
       if (/^第\d+集$/.test(status)) status = '更新至' + status;
-      const updateDate = $el.find('.meta .tags').text().trim()
+      let updateDate = $el.find('.meta .tags').text().trim()
         || $el.find('.meta').text().trim();
+      // 只保留日期部分（去掉"更新"等后缀）
+      const dateM = updateDate.match(/\d{4}-\d{2}-\d{2}/);
+      if (dateM) updateDate = dateM[0];
 
       cards.push({
         id: this._extractId(detailHref),

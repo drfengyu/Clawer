@@ -57,9 +57,12 @@ router.get('/gallery', async (req, res) => {
   try {
     const dateStr = `${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
     let animes = req.app.locals.db.getAnimesByUpdateDate(dateStr);
-    // 今天没有更新时回退到全部（首次使用或站点未更新）
+    // 今天没有更新时，回退到最近一次更新日期的动漫（而非全部）
     if (animes.length === 0) {
-      animes = req.app.locals.db.getAllAnimes({ sort: 'updated_at', limit: 50 });
+      const latestDate = req.app.locals.db.getLatestUpdateDate();
+      if (latestDate) {
+        animes = req.app.locals.db.getAnimesByUpdateDate(latestDate);
+      }
     }
     // 只保留有效分类（白名单）
     const VALID_CATS = ['日漫', '国漫', '美漫', '动漫剧场'];
@@ -92,8 +95,8 @@ router.get('/anime/:id', async (req, res) => {
 
     let episodes = req.app.locals.db.getEpisodesByAnime(anime.id);
 
-    // 按需爬取详情：分类浏览来的动漫可能还没有分集/简介
-    if (episodes.length === 0 && anime.detail_url) {
+    // 按需爬取详情：缺少分集或简介时补全（分类浏览来源 / 早期数据缺失）
+    if ((episodes.length === 0 || !anime.description || !anime.meta) && anime.detail_url) {
       try {
         const crawler = new MaccmsCrawler(anime.site_url || DEFAULT_SITE);
         const { anime: detail, episodes: eps } = await crawler.crawlDetail(anime.detail_url);

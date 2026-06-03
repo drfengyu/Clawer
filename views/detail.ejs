@@ -44,7 +44,7 @@
 </head>
 <body>
   <div class="detail-container">
-    <a href="/gallery" class="btn-back">&#8592; 返回画廊</a>
+    <a href="javascript:history.back()" class="btn-back" onclick="if(history.length<=1){location.href='/gallery';return false}">&#8592; 返回</a>
 
     <div class="detail-hero">
       <div class="detail-cover">

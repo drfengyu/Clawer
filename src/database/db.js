@@ -441,6 +441,19 @@ class Db {
     return res[0].values.map(row => this._rowToObj(res[0].columns, row));
   }
 
+  // 最近一次更新日期（仅取有分集的每日更新动漫，格式 YYYY-MM-DD）
+  getLatestUpdateDate() {
+    const res = this.db.exec(
+      `SELECT a.update_date FROM animes a
+       WHERE a.update_date LIKE '____-__-__' ESCAPE '\\'
+       AND LENGTH(a.update_date) = 10
+       AND EXISTS (SELECT 1 FROM anime_episodes e WHERE e.anime_id = a.id)
+       ORDER BY a.update_date DESC LIMIT 1`
+    );
+    if (res.length === 0 || res[0].values.length === 0) return null;
+    return res[0].values[0][0];
+  }
+
   searchAnimes(keyword) {
     const res = this.db.exec(
       'SELECT * FROM animes WHERE title LIKE ? OR description LIKE ? ORDER BY update_date DESC LIMIT 50',
