@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>测试页面 - 包含多媒体资源</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    h1 { color: #333; }
+    .media-section {
+      margin: 30px 0;
+      padding: 20px;
+      background: #f5f5f5;
+      border-radius: 8px;
+    }
+    img {
+      max-width: 300px;
+      margin: 10px;
+      border: 2px solid #ddd;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>📺 测试页面 - 多媒体资源</h1>
+  <p>这是一个用于测试爬虫的示例页面，包含各种类型的媒体资源。</p>
+
+  <div class="media-section">
+    <h2>🖼️ 图片资源</h2>
+    <img src="https://via.placeholder.com/300x200/FF6B6B/FFFFFF?text=Image+1" alt="测试图片1">
+    <img src="https://via.placeholder.com/300x200/4ECDC4/FFFFFF?text=Image+2" alt="测试图片2">
+    <img src="https://via.placeholder.com/300x200/45B7D1/FFFFFF?text=Image+3" alt="测试图片3">
+  </div>
+
+  <div class="media-section">
+    <h2>🎵 音频资源</h2>
+    <audio controls>
+      <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
+      您的浏览器不支持音频播放。
+    </audio>
+  </div>
+
+  <div class="media-section">
+    <h2>🎬 视频资源</h2>
+    <video width="400" controls>
+      <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4">
+      您的浏览器不支持视频播放。
+    </video>
+  </div>
+
+  <div class="media-section">
+    <h2>📝 说明</h2>
+    <p>这个页面包含：</p>
+    <ul>
+      <li>3张测试图片（placeholder图片）</li>
+      <li>1个免费音频文件</li>
+      <li>1个测试视频文件</li>
+    </ul>
+    <p><strong>使用方法：</strong></p>
+    <ol>
+      <li>启动测试服务器：<code>python3 -m http.server 8000</code></li>
+      <li>在爬虫系统中输入：<code>http://localhost:8000/test-page.html</code></li>
+      <li>选择资源类型（图片/音频/视频）</li>
+      <li>点击开始爬取</li>
+    </ol>
+  </div>
+
+  <footer>
+    <p style="color: #666; font-size: 12px; margin-top: 50px;">
+      © 2024 测试页面 | 所有资源均为公开测试资源
+    </p>
+  </footer>
+</body>
+</html>

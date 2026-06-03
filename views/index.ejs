@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header>
+    <h1>🎯 <%= title %></h1>
+    <nav>
+      <a href="/">首页</a>
+      <a href="/resources">资源列表</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <h2>欢迎使用媒体资源爬虫系统</h2>
+      <p>轻松抓取和管理免费的图片、音频、视频资源</p>
+    </section>
+
+    <section class="crawl-form">
+      <h3>添加爬取任务</h3>
+      <form id="crawlForm">
+        <div class="form-group">
+          <label for="url">资源URL</label>
+          <input
+            type="url"
+            id="url"
+            name="url"
+            placeholder="https://example.com/page"
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="type">资源类型</label>
+          <select id="type" name="type" required>
+            <option value="">请选择类型</option>
+            <option value="image">图片</option>
+            <option value="video">视频</option>
+            <option value="audio">音频</option>
+          </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary">开始爬取</button>
+      </form>
+
+      <div id="message" class="message"></div>
+    </section>
+
+    <section class="features">
+      <h3>功能特性</h3>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <span class="icon">🖼️</span>
+          <h4>图片爬取</h4>
+          <p>自动提取页面中的所有图片资源</p>
+        </div>
+        <div class="feature-card">
+          <span class="icon">🎵</span>
+          <h4>音频下载</h4>
+          <p>支持多种音频格式的抓取和下载</p>
+        </div>
+        <div class="feature-card">
+          <span class="icon">🎬</span>
+          <h4>视频抓取</h4>
+          <p>轻松获取页面中的视频资源</p>
+        </div>
+        <div class="feature-card">
+          <span class="icon">💾</span>
+          <h4>本地存储</h4>
+          <p>自动分类保存到本地文件夹</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2024 媒体资源爬虫系统 | 仅用于合法用途</p>
+  </footer>
+
+  <script src="/js/main.js"></script>
+</body>
+</html>
