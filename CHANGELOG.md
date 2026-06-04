@@ -7,6 +7,10 @@
 - ✅ 画廊顶栏新增「时间轴」入口
 - ✅ `db.js` 新增 `getUpdateDates(limit,offset)` / `countUpdateDates()` 聚合查询
 
+### 📝 文档改进
+- ✅ **新环境快速部署指南** — README 补充从 git clone 到启动的完整 3 步流程，说明数据库/下载目录自动创建机制
+- ✅ **资源分区同步时机说明** — 明确每日更新（8 点）、分区增量（凌晨 4 点）、全量同步（手动 `npm run sync:categories`）的触发时机
+
 ---
 
 ## [v3.3.0] - 2026-06-04
