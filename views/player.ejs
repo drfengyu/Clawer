@@ -31,7 +31,7 @@
   <div class="player-wrapper">
     <div class="player-header">
       <div>
-        <a href="/anime/<%= anime.id %>" class="back-link">&#8592; 返回详情</a>
+        <a href="/anime/<%= anime.id %>" class="back-link" onclick="return backToDetail(event)">&#8592; 返回详情</a>
       </div>
       <h2><%= anime.title %> - <%= episode.label || ('第'+String(episode.ep_number).padStart(2,'0')+'集') %></h2>
       <div></div>
@@ -67,7 +67,38 @@
   <script>
     // 初始化播放器
     const episodeId = <%= episode.id %>;
+    const animeId = <%= anime.id %>;
     initPlayer(episodeId);
+
+    // 记录从详情页进入播放页的层级。
+    // 播放页的"返回详情"若用 href 跳转会向历史栈压入新的详情页，
+    // 导致随后在详情页点"返回"时又退回播放页。这里用 playDepth 记录
+    // 播放链深度，"返回详情"时一次性 history.go(-playDepth) 回到原详情页。
+    (function () {
+      const ref = document.referrer || '';
+      if (ref.indexOf('/anime/' + animeId) !== -1) {
+        // 直接从本片详情页进入
+        sessionStorage.setItem('playDepth', '1');
+      } else if (ref.indexOf('/play/') !== -1) {
+        // 从上一集/下一集切换进入，深度 +1
+        const d = parseInt(sessionStorage.getItem('playDepth') || '0', 10);
+        sessionStorage.setItem('playDepth', String(d + 1));
+      } else {
+        // 直接打开/刷新/外链，无可用的回退历史
+        sessionStorage.removeItem('playDepth');
+      }
+    })();
+
+    function backToDetail(e) {
+      const d = parseInt(sessionStorage.getItem('playDepth') || '0', 10);
+      if (d > 0) {
+        e.preventDefault();
+        sessionStorage.removeItem('playDepth');
+        history.go(-d); // 退回历史栈中已存在的详情页，不再压入新记录
+        return false;
+      }
+      return true; // 无历史可退时，按 href 正常跳转到详情页
+    }
 
     async function downloadEpisode(epId) {
       try {
