@@ -11,9 +11,9 @@ const CATEGORY_MAP = {
 };
 const DEFAULT_SITE = 'https://m.tiantiandongman.com/';
 
-// 首页 → 重定向到画廊
+// 首页 → 显示动漫与小说两个入口
 router.get('/', (req, res) => {
-  res.redirect('/gallery');
+  res.render('home', { title: '媒体资源爬虫管理系统' });
 });
 
 // 分类浏览页 —— 读本地库，后端 SQL 分页 + 库内搜索（不再实时爬源站）

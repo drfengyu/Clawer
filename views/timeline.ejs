@@ -98,8 +98,11 @@
       <% (menuCategories || []).forEach(cat => { %>
         <a href="/category/<%= encodeURIComponent(cat) %>" class="nav-link"><%= cat %></a>
       <% }); %>
-      <a href="/novels" class="nav-link">📚 小说</a>
     </nav>
+    <div style="display:flex;gap:12px;align-items:center">
+      <a href="/" class="nav-link" title="返回首页">🏠 首页</a>
+      <a href="/rss" class="nav-link" title="RSS 订阅" target="_blank" rel="noopener">📡 RSS</a>
+    </div>
   </header>
 
   <div class="timeline-wrap">

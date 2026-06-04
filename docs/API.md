@@ -569,6 +569,266 @@ curl -X DELETE http://localhost:3000/api/resources/1
 
 ---
 
+## 小说接口
+
+### 1. 爬取小说首页
+
+从八一中文网首页抓取小说列表。
+
+**请求**
+```
+POST /api/novel/crawl-home
+```
+
+**响应示例**
+```json
+{
+  "success": true,
+  "message": "成功抓取 30 本小说，新增/更新 25 本",
+  "novels": [
+    {
+      "sourceId": "29250",
+      "title": "轮回乐园",
+      "detailUrl": "/book/29250/",
+      "siteUrl": "https://www.81zw2.com"
+    }
+  ]
+}
+```
+
+---
+
+### 2. 爬取小说详情
+
+抓取小说详情（书名、作者、封面、简介、章节列表）。
+
+**请求**
+```
+POST /api/novel/crawl-detail
+Content-Type: application/json
+
+{
+  "bookId": "29250"
+}
+```
+
+**响应示例**
+```json
+{
+  "success": true,
+  "message": "成功抓取小说《轮回乐园》，章节数: 1234",
+  "novelId": 1,
+  "novel": {
+    "sourceId": "29250",
+    "title": "轮回乐园",
+    "author": "那一只蚊子",
+    "cover": "https://example.com/cover.jpg",
+    "description": "简介内容...",
+    "category": "玄幻",
+    "status": "连载中",
+    "wordCount": 5000000,
+    "updateDate": "2026-06-04"
+  },
+  "chapterCount": 1234
+}
+```
+
+---
+
+### 3. 获取小说列表
+
+获取本地数据库中的小说列表（支持分页、搜索、分类筛选）。
+
+**请求**
+```
+GET /api/novel/list?page=1&pageSize=60&keyword=轮回&category=玄幻
+```
+
+**参数说明**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| page | number | 否 | 页码，默认 1 |
+| pageSize | number | 否 | 每页数量，默认 60 |
+| keyword | string | 否 | 搜索关键词（书名/作者） |
+| category | string | 否 | 分类筛选 |
+
+**响应示例**
+```json
+{
+  "success": true,
+  "novels": [
+    {
+      "id": 1,
+      "source_id": "29250",
+      "site_url": "https://www.81zw2.com",
+      "title": "轮回乐园",
+      "author": "那一只蚊子",
+      "cover": "https://example.com/cover.jpg",
+      "description": "简介...",
+      "category": "玄幻",
+      "status": "连载中",
+      "word_count": 5000000,
+      "update_date": "2026-06-04",
+      "detail_url": "/book/29250/",
+      "created_at": "2026-06-04 10:00:00",
+      "updated_at": "2026-06-04 10:00:00"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "pageSize": 60,
+    "total": 100,
+    "totalPages": 2
+  }
+}
+```
+
+---
+
+### 4. 获取小说详情
+
+根据 ID 获取小说详细信息。
+
+**请求**
+```
+GET /api/novel/:id
+```
+
+**响应示例**
+```json
+{
+  "success": true,
+  "novel": {
+    "id": 1,
+    "source_id": "29250",
+    "title": "轮回乐园",
+    "author": "那一只蚊子",
+    "cover": "https://example.com/cover.jpg",
+    "description": "简介...",
+    "category": "玄幻",
+    "status": "连载中",
+    "word_count": 5000000,
+    "update_date": "2026-06-04"
+  }
+}
+```
+
+---
+
+### 5. 获取章节列表
+
+获取小说的所有章节。
+
+**请求**
+```
+GET /api/novel/:id/chapters
+```
+
+**响应示例**
+```json
+{
+  "success": true,
+  "chapters": [
+    {
+      "id": 1,
+      "novel_id": 1,
+      "source_id": "22613000",
+      "chapter_number": 1,
+      "title": "第一章 开始",
+      "content": "",
+      "word_count": 0,
+      "is_vip": 0,
+      "created_at": "2026-06-04 10:00:00"
+    }
+  ]
+}
+```
+
+---
+
+### 6. 获取章节内容
+
+获取章节正文（如果数据库没有，则实时爬取）。
+
+**请求**
+```
+GET /api/novel/chapter/:chapterId
+```
+
+**响应示例**
+```json
+{
+  "success": true,
+  "chapter": {
+    "id": 1,
+    "novel_id": 1,
+    "source_id": "22613000",
+    "chapter_number": 1,
+    "title": "第一章 开始",
+    "content": "正文内容...",
+    "word_count": 2500,
+    "is_vip": 0,
+    "created_at": "2026-06-04 10:00:00"
+  }
+}
+```
+
+---
+
+### 7. 删除小说
+
+删除小说及其所有章节。
+
+**请求**
+```
+DELETE /api/novel/:id
+```
+
+**响应示例**
+```json
+{
+  "success": true,
+  "message": "删除成功"
+}
+```
+
+---
+
+## 测试用例
+
+### 小说接口测试
+
+```bash
+# 爬取首页
+curl -X POST http://localhost:3000/api/novel/crawl-home
+
+# 爬取详情（轮回乐园）
+curl -X POST http://localhost:3000/api/novel/crawl-detail \
+  -H "Content-Type: application/json" \
+  -d '{"bookId": "29250"}'
+
+# 获取列表
+curl http://localhost:3000/api/novel/list?page=1&pageSize=20
+
+# 搜索小说
+curl http://localhost:3000/api/novel/list?keyword=轮回
+
+# 获取详情
+curl http://localhost:3000/api/novel/1
+
+# 获取章节列表
+curl http://localhost:3000/api/novel/1/chapters
+
+# 获取章节内容
+curl http://localhost:3000/api/novel/chapter/1
+
+# 删除小说
+curl -X DELETE http://localhost:3000/api/novel/1
+```
+
+---
+
 ## 错误码说明
 
 | HTTP状态码 | 说明 |
@@ -587,10 +847,20 @@ curl -X DELETE http://localhost:3000/api/resources/1
 3. **数据格式**: 所有日期时间均为本地时间格式
 4. **文件大小**: file_size 字段单位为字节
 5. **状态更新**: 资源状态会自动更新，建议轮询查询
+6. **小说爬取**: 章节正文按需抓取，避免批量抓取造成压力
 
 ---
 
 ## 更新日志
+
+### v4.0.1 (2026-06-04)
+- 架构优化：动漫与小说平级化，新增统一首页
+- 文档同步更新
+
+### v4.0.0 (2026-06-04)
+- 新增小说接口文档（爬取/列表/详情/章节）
+- 支持八一中文网小说抓取
+- 章节正文按需实时爬取
 
 ### v3.1.0 (2026-06-04)
 - 新增动漫站点接口文档（检测/爬取/详情/播放/下载）

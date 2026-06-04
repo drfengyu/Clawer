@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>媒体资源爬虫管理系统</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      color: #333; padding: 20px;
+    }
+    .container {
+      max-width: 1000px; width: 100%;
+    }
+    .header {
+      text-align: center; margin-bottom: 60px; color: #fff;
+    }
+    .header h1 {
+      font-size: 42px; margin-bottom: 12px; font-weight: 700;
+      text-shadow: 0 2px 8px rgba(0,0,0,.2);
+    }
+    .header p {
+      font-size: 16px; opacity: .9; font-weight: 400;
+    }
+    .cards {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 32px; margin-bottom: 48px;
+    }
+    .card {
+      background: #fff; border-radius: 16px; padding: 40px 32px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.15); transition: all .3s;
+      text-decoration: none; color: inherit; display: block;
+      position: relative; overflow: hidden;
+    }
+    .card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 6px;
+      background: linear-gradient(90deg, var(--gradient-from), var(--gradient-to));
+    }
+    .card:hover {
+      transform: translateY(-8px); box-shadow: 0 16px 48px rgba(0,0,0,.25);
+    }
+    .card.anime {
+      --gradient-from: #e7a519;
+      --gradient-to: #f39c12;
+    }
+    .card.novel {
+      --gradient-from: #3498db;
+      --gradient-to: #2980b9;
+    }
+    .card-icon {
+      font-size: 56px; margin-bottom: 20px; display: block;
+    }
+    .card h2 {
+      font-size: 26px; margin-bottom: 12px; font-weight: 600;
+    }
+    .card p {
+      font-size: 14px; line-height: 1.7; color: #666; margin-bottom: 20px;
+    }
+    .card .features {
+      list-style: none; font-size: 13px; color: #888;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .card .features li::before {
+      content: '✓ '; color: var(--check-color); font-weight: bold; margin-right: 6px;
+    }
+    .card.anime .features li::before { --check-color: #e7a519; }
+    .card.novel .features li::before { --check-color: #3498db; }
+    .footer {
+      text-align: center; color: rgba(255,255,255,.8); font-size: 14px;
+      display: flex; justify-content: center; gap: 24px; flex-wrap: wrap;
+    }
+    .footer a {
+      color: rgba(255,255,255,.9); text-decoration: none; transition: color .2s;
+      padding: 8px 16px; border-radius: 8px; background: rgba(255,255,255,.1);
+    }
+    .footer a:hover { color: #fff; background: rgba(255,255,255,.2); }
+
+    @media (max-width: 768px) {
+      .header h1 { font-size: 32px; }
+      .cards { gap: 20px; }
+      .card { padding: 28px 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>媒体资源爬虫管理系统</h1>
+      <p>Media Crawler - 智能抓取 · 便捷管理</p>
+    </div>
+
+    <div class="cards">
+      <a href="/gallery" class="card anime">
+        <span class="card-icon">🎬</span>
+        <h2>动漫资源</h2>
+        <p>B站风格画廊，每日更新抓取，在线播放器，支持多线路切换与自动连播</p>
+        <ul class="features">
+          <li>每日更新 + 时间轴回顾</li>
+          <li>分区浏览（日漫/国漫/美漫/剧场）</li>
+          <li>在线播放（DPlayer + hls.js）</li>
+          <li>m3u8 代理 + 倍速播放</li>
+          <li>RSS 订阅 + 推送通知</li>
+        </ul>
+      </a>
+
+      <a href="/novels" class="card novel">
+        <span class="card-icon">📚</span>
+        <h2>小说资源</h2>
+        <p>小说书库，章节目录，在线阅读器，宋体大行距排版，支持键盘导航</p>
+        <ul class="features">
+          <li>书库列表（搜索 + 分页）</li>
+          <li>书籍详情（封面/简介/目录）</li>
+          <li>在线阅读器（宋体排版）</li>
+          <li>按需抓取章节正文</li>
+          <li>键盘快捷键（← →）</li>
+        </ul>
+      </a>
+    </div>
+
+    <div class="footer">
+      <a href="/admin">🗄️ 数据库后台</a>
+      <a href="/admin/api">🔧 API 调试</a>
+      <a href="/rss" target="_blank">📡 RSS 订阅</a>
+    </div>
+  </div>
+</body>
+</html>
