@@ -14,6 +14,11 @@
     .player-header .back-link:hover { color: #e7a519; }
     .player-header h2 { font-size: 18px; color: #fff; font-weight: 500; }
     #dplayer { border-radius: 8px; overflow: hidden; background: #000; }
+    .line-switch { display: flex; align-items: center; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+    .line-switch .ls-label { color: #888; font-size: 13px; }
+    .line-switch .ls-btn { cursor: pointer; padding: 5px 14px; border-radius: 6px; background: #222; color: #ccc; font-size: 13px; border: 1px solid #333; transition: all .2s; }
+    .line-switch .ls-btn:hover { background: #2a2a2a; color: #fff; }
+    .line-switch .ls-btn.active { background: #e7a519; color: #1a1a1a; border-color: #e7a519; font-weight: 500; }
     .ep-nav { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; align-items: center; }
     .ep-nav a { display: inline-flex; align-items: center; gap: 4px; padding: 8px 18px; border-radius: 8px; background: #222; color: #ddd; text-decoration: none; font-size: 14px; transition: all .2s; border: 1px solid #333; }
     .ep-nav a:hover { background: #e7a519; color: #fff; border-color: #e7a519; }
@@ -61,14 +66,16 @@
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5"></script>
   <script src="https://cdn.jsdelivr.net/npm/dplayer/dist/DPlayer.min.js"></script>
   <script src="/js/player.js"></script>
   <script>
     // 初始化播放器
     const episodeId = <%= episode.id %>;
     const animeId = <%= anime.id %>;
-    initPlayer(episodeId);
+    const nextEpId = <%= nextEpId ? nextEpId : 'null' %>;
+    const siblingLines = <%- JSON.stringify(siblingLines || []) %>;
+    initPlayer(episodeId, { nextEpId, siblingLines });
 
     // 记录从详情页进入播放页的层级。
     // 播放页的"返回详情"若用 href 跳转会向历史栈压入新的详情页，

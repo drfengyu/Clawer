@@ -186,6 +186,16 @@ router.get('/anime/:id', async (req, res) => {
 
 // ─── 播放地址 ──────────────────────────────────────────
 
+// 构造经本服务代理的 m3u8 地址（仅对 m3u8 生效），referer 取播放页 origin
+function buildProxyUrl(videoUrl, playUrl) {
+  if (!videoUrl || !/\.m3u8(\?|$)/i.test(videoUrl)) return '';
+  let ref = '';
+  try { ref = new URL(playUrl).origin; } catch (e) { /* playUrl 缺失/非法则不带 referer */ }
+  let s = '/api/proxy/m3u8?url=' + encodeURIComponent(videoUrl);
+  if (ref) s += '&ref=' + encodeURIComponent(ref);
+  return s;
+}
+
 router.get('/anime/episode/:epId/play', async (req, res) => {
   try {
     const { epId } = req.params;
@@ -194,7 +204,13 @@ router.get('/anime/episode/:epId/play', async (req, res) => {
 
     // 有缓存直接返回
     if (episode.video_url) {
-      return res.json({ success: true, data: { videoUrl: episode.video_url, videoUrlNext: episode.video_url_next || '', cached: true } });
+      return res.json({ success: true, data: {
+        videoUrl: episode.video_url,
+        proxyUrl: buildProxyUrl(episode.video_url, episode.play_url),
+        playPageUrl: episode.play_url || '',
+        videoUrlNext: episode.video_url_next || '',
+        cached: true
+      } });
     }
 
     // 实时解析
@@ -209,7 +225,13 @@ router.get('/anime/episode/:epId/play', async (req, res) => {
     // 缓存到数据库
     req.app.locals.db.updateEpisodeVideoUrl(epId, videoUrl, videoUrlNext);
 
-    res.json({ success: true, data: { videoUrl, videoUrlNext: videoUrlNext || '', cached: false } });
+    res.json({ success: true, data: {
+      videoUrl,
+      proxyUrl: buildProxyUrl(videoUrl, episode.play_url),
+      playPageUrl: episode.play_url || '',
+      videoUrlNext: videoUrlNext || '',
+      cached: false
+    } });
   } catch (error) {
     console.error('获取播放地址失败:', error);
     res.status(500).json({ success: false, error: error.message });

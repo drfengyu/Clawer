@@ -158,19 +158,28 @@ router.get('/play/:epId', async (req, res) => {
     const anime = req.app.locals.db.getAnimeById(episode.anime_id);
     if (!anime) return res.status(404).render('error', { error: '动漫未找到' });
 
-    // 查找前后集
+    // 查找前后集：限定在当前线路内，按集号排序（避免跨线路串集）
     const allEps = req.app.locals.db.getEpisodesByAnime(episode.anime_id);
-    const sorted = allEps.sort((a, b) => a.ep_number - b.ep_number);
-    const curIdx = sorted.findIndex(e => e.id === parseInt(req.params.epId));
-    const prevEp = curIdx > 0 ? sorted[curIdx - 1] : null;
-    const nextEp = curIdx < sorted.length - 1 ? sorted[curIdx + 1] : null;
+    const sameLine = allEps
+      .filter(e => (e.line_name || '默认线路') === (episode.line_name || '默认线路'))
+      .sort((a, b) => a.ep_number - b.ep_number);
+    const curIdx = sameLine.findIndex(e => e.id === parseInt(req.params.epId));
+    const prevEp = curIdx > 0 ? sameLine[curIdx - 1] : null;
+    const nextEp = curIdx >= 0 && curIdx < sameLine.length - 1 ? sameLine[curIdx + 1] : null;
+
+    // 同一集号、不同线路的分集，供播放页"线路切换"
+    const siblingLines = allEps
+      .filter(e => e.ep_number === episode.ep_number)
+      .map(e => ({ lineName: e.line_name || '默认线路', epId: e.id }));
 
     res.render('player', {
       title: `${anime.title} - 第${String(episode.ep_number).padStart(2, '0')}集`,
       anime,
       episode,
       prevEp,
-      nextEp
+      nextEp,
+      nextEpId: nextEp ? nextEp.id : null,
+      siblingLines
     });
   } catch (error) {
     res.status(500).render('error', { error: error.message });
