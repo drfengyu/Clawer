@@ -80,7 +80,7 @@ npm run dev
 
 ### API 使用
 
-详细的 API 文档请查看 [API.md](./API.md)
+详细的 API 文档请查看 [docs/API.md](./docs/API.md)
 
 #### 动漫 API
 
@@ -140,7 +140,7 @@ curl http://localhost:3000/api/resources
 - `GET /api/history` - 获取爬取历史
 - `GET /api/stats` - 获取统计信息
 
-完整的 API 文档请查看 [API.md](./API.md)
+完整的 API 文档请查看 [docs/API.md](./docs/API.md)
 
 ## 🛠️ 技术栈
 
@@ -183,9 +183,16 @@ Clawer/
 │       ├── player.js          # DPlayer 初始化
 │       └── resources.js
 ├── downloads/                 # 下载目录（image/video/audio）
+├── docs/                      # 项目文档（API/使用/测试/总结等）
+│   ├── API.md                 # 完整 API 文档
+│   ├── API_QUICK_REFERENCE.md # API 快速参考
+│   ├── USAGE.md               # 使用教程
+│   ├── TEST.md                # 测试指南
+│   ├── SUMMARY.md             # 项目总结
+│   └── PROJECT_COMPLETE.md    # 项目完成报告
 ├── package.json
 ├── README.md
-└── API.md
+└── CHANGELOG.md
 ```
 
 ## 🗄️ 数据库结构
