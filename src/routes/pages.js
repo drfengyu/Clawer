@@ -196,6 +196,11 @@ router.get('/admin', (req, res) => {
   res.render('admin', { title: '数据库后台' });
 });
 
+// API 在线调试控制台
+router.get('/admin/api', (req, res) => {
+  res.render('apiDebug', { title: 'API 在线调试' });
+});
+
 // 旧的资源列表
 router.get('/resources', async (req, res) => {
   try {
