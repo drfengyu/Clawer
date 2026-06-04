@@ -84,6 +84,9 @@ class Db {
       this.db.run(this._getCategoryLinkTableDDL());
       this.db.run(this._getEpisodeTableDDL());
 
+      // 旧库结构迁移
+      this._migrate();
+
       // 初始化统计数据
       const checkStats = this.db.exec('SELECT COUNT(*) as count FROM crawl_stats');
       if (checkStats.length === 0 || checkStats[0].values[0][0] === 0) {
@@ -94,6 +97,19 @@ class Db {
     } catch (err) {
       console.error('创建表失败:', err);
       throw err;
+    }
+  }
+
+  // 旧库结构迁移：补缺失列（CREATE TABLE IF NOT EXISTS 对已存在的表不生效）
+  _migrate() {
+    // animes.site_type：记录数据由哪个爬虫产出
+    const cols = this.db.exec('PRAGMA table_info(animes)');
+    const hasSiteType = cols.length > 0 && cols[0].values.some(row => row[1] === 'site_type');
+    if (!hasSiteType) {
+      this.db.run(`ALTER TABLE animes ADD COLUMN site_type TEXT DEFAULT ''`);
+      // 现有数据均来自 maccms 站点，回填
+      this.db.run(`UPDATE animes SET site_type='maccms' WHERE site_type IS NULL OR site_type=''`);
+      console.log('✅ 迁移：animes 表新增 site_type 列并回填 maccms');
     }
   }
 
@@ -331,6 +347,7 @@ class Db {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       source_id TEXT NOT NULL,
       site_url TEXT NOT NULL,
+      site_type TEXT DEFAULT '',
       title TEXT NOT NULL,
       cover TEXT,
       score REAL DEFAULT 0,
@@ -388,16 +405,17 @@ class Db {
     );
     if (existing.length > 0 && existing[0].values.length > 0) {
       const id = existing[0].values[0][0];
+      // site_type 传空则保留原值，避免某调用点漏传把列清空
       this.db.run(
-        `UPDATE animes SET title=?, cover=?, score=?, status=?, description=?, meta=?, update_date=?, detail_url=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-        [data.title, data.cover, data.score, data.status, data.description || '', data.meta || '', data.updateDate || '', data.detailUrl || '', id]
+        `UPDATE animes SET title=?, cover=?, score=?, status=?, description=?, meta=?, update_date=?, detail_url=?, site_type=COALESCE(NULLIF(?, ''), site_type), updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+        [data.title, data.cover, data.score, data.status, data.description || '', data.meta || '', data.updateDate || '', data.detailUrl || '', data.siteType || '', id]
       );
       return id;
     }
     this.db.run(
-      `INSERT INTO animes (source_id, site_url, title, cover, score, status, description, meta, update_date, detail_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [data.sourceId, data.siteUrl, data.title, data.cover, data.score, data.status, data.description || '', data.meta || '', data.updateDate || '', data.detailUrl || '']
+      `INSERT INTO animes (source_id, site_url, site_type, title, cover, score, status, description, meta, update_date, detail_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [data.sourceId, data.siteUrl, data.siteType || '', data.title, data.cover, data.score, data.status, data.description || '', data.meta || '', data.updateDate || '', data.detailUrl || '']
     );
     const res = this.db.exec('SELECT last_insert_rowid() as id');
     this.save();

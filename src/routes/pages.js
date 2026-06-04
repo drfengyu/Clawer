@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const MaccmsCrawler = require('../crawlers/maccmsCrawler');
+const { getCrawlerByType } = require('../crawlers/crawlerRegistry');
 
 // 四大分区配置
 const CATEGORY_MAP = {
@@ -34,7 +35,7 @@ router.get('/category/:name', async (req, res) => {
       if (!dbAnime) {
         // 新动漫：插入基础信息，update_date 留空（非每日更新）
         const id = req.app.locals.db.upsertAnime({
-          ...a, siteUrl: DEFAULT_SITE, updateDate: ''
+          ...a, siteUrl: DEFAULT_SITE, siteType: 'maccms', updateDate: ''
         });
         dbAnime = { id };
       }
@@ -98,13 +99,13 @@ router.get('/anime/:id', async (req, res) => {
     // 按需爬取详情：缺少分集或简介时补全（分类浏览来源 / 早期数据缺失）
     if ((episodes.length === 0 || !anime.description || !anime.meta) && anime.detail_url) {
       try {
-        const crawler = new MaccmsCrawler(anime.site_url || DEFAULT_SITE);
+        const crawler = getCrawlerByType(anime.site_type, anime.site_url || DEFAULT_SITE);
         const { anime: detail, episodes: eps } = await crawler.crawlDetail(anime.detail_url);
         // 保留首页已有的封面/状态/更新日期
         if (anime.cover) detail.cover = anime.cover;
         if (anime.status) detail.status = anime.status;
         detail.updateDate = anime.update_date || '';
-        req.app.locals.db.upsertAnime({ ...detail, siteUrl: anime.site_url || DEFAULT_SITE });
+        req.app.locals.db.upsertAnime({ ...detail, siteUrl: anime.site_url || DEFAULT_SITE, siteType: anime.site_type || 'maccms' });
         for (const cn of (detail.categoryNames || [])) {
           const cid = req.app.locals.db.getOrCreateCategory(cn);
           req.app.locals.db.linkAnimeCategory(anime.id, cid);

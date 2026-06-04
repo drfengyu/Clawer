@@ -92,48 +92,25 @@ function startDailyCrawlScheduler(db) {
       lastCrawlDate = dateStr;
       console.log(`[每日更新] 开始自动爬取 ${dateStr}...`);
       try {
-        const { SiteDetector } = require('./crawlers/siteDetector');
-        const MaccmsCrawler = require('./crawlers/maccmsCrawler');
-        const detector = new SiteDetector();
-        const { type } = await detector.detect(DEFAULT_SITE);
+        const { getCrawler } = require('./crawlers/crawlerRegistry');
+        const { crawler, type } = await getCrawler(DEFAULT_SITE);
+        if (!crawler) return;
 
-        if (type === 'maccms') {
-          const crawler = new MaccmsCrawler(DEFAULT_SITE);
-          const { animes, categories } = await crawler.crawlHomepage(true);
+        const { animes, categories } = await crawler.crawlHomepage(true);
 
-          for (const cat of categories) db.getOrCreateCategory(cat.name);
-          for (const a of animes) {
-            const id = db.upsertAnime({ ...a, siteUrl: DEFAULT_SITE });
-            if (a.categoryName) {
-              const catId = db.getOrCreateCategory(a.categoryName);
-              db.linkAnimeCategory(id, catId);
-            }
+        for (const cat of categories) db.getOrCreateCategory(cat.name);
+        for (const a of animes) {
+          const id = db.upsertAnime({ ...a, siteUrl: DEFAULT_SITE, siteType: type });
+          if (a.categoryName) {
+            const catId = db.getOrCreateCategory(a.categoryName);
+            db.linkAnimeCategory(id, catId);
           }
-
-          // 异步爬详情
-          const crawlDetails = require('./routes/animeRoutes')._crawlDetailsForScheduler
-            || (async (db2, list, site) => {
-              const MaccmsCrawler2 = require('./crawlers/maccmsCrawler');
-              const c = new MaccmsCrawler2(site);
-              for (const a of list) {
-                try {
-                  const { anime, episodes } = await c.crawlDetail(a.detailUrl);
-                  const existing = db2.getAnimeBySourceId ? db2.getAnimeBySourceId(anime.sourceId, site) : null;
-                  if (existing && existing.cover && anime.cover) anime.cover = existing.cover;
-                  const aid = db2.upsertAnime({ ...anime, siteUrl: site });
-                  for (const cn of (anime.categoryNames || [])) {
-                    const ci = db2.getOrCreateCategory(cn);
-                    db2.linkAnimeCategory(aid, ci);
-                  }
-                  db2.deleteAnimeEpisodes(aid);
-                  for (const ep of episodes) db2.upsertEpisode(aid, ep);
-                } catch (e) { /* skip failed details */ }
-              }
-            });
-          crawlDetails(db, animes, DEFAULT_SITE);
-
-          console.log(`[每日更新] 完成！${animes.length} 部今日更新`);
         }
+
+        // 异步爬详情：复用 animeRoutes 的实现（封面跨CDN保留、状态合并等）
+        require('./routes/animeRoutes')._crawlDetailsForScheduler(db, animes, DEFAULT_SITE, type);
+
+        console.log(`[每日更新] 完成！${animes.length} 部今日更新`);
       } catch (e) {
         console.error('[每日更新] 爬取失败:', e.message);
       }

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { SiteDetector, SiteType } = require('../crawlers/siteDetector');
-const MaccmsCrawler = require('../crawlers/maccmsCrawler');
+const { getCrawler, getCrawlerByType } = require('../crawlers/crawlerRegistry');
 const BaseCrawler = require('../crawlers/baseCrawler');
 
 // ─── 站点检测 ──────────────────────────────────────────
@@ -25,13 +25,10 @@ router.post('/anime/crawl', async (req, res) => {
     const { siteUrl, filterToday = true, crawlDetails = true } = req.body;
     if (!siteUrl) return res.status(400).json({ success: false, error: '缺少 siteUrl 参数' });
 
-    // 检测站点类型
-    const detector = new SiteDetector();
-    const { type } = await detector.detect(siteUrl);
+    // 检测站点类型并从注册表取爬虫
+    const { crawler, type } = await getCrawler(siteUrl);
 
-    if (type === SiteType.MACCMS) {
-      const crawler = new MaccmsCrawler(siteUrl);
-
+    if (crawler) {
       // 1) 爬首页卡片
       const { animes, categories, todayCount } = await crawler.crawlHomepage(filterToday);
 
@@ -44,7 +41,7 @@ router.post('/anime/crawl', async (req, res) => {
       // 3) 逐卡片 upsert
       const animeIds = [];
       for (const a of animes) {
-        const id = db.upsertAnime({ ...a, siteUrl });
+        const id = db.upsertAnime({ ...a, siteUrl, siteType: type });
         animeIds.push(id);
         // 关联分类
         if (a.categoryName) {
@@ -55,7 +52,7 @@ router.post('/anime/crawl', async (req, res) => {
 
       // 4) 异步爬详情页（分集）- 爬全部
       if (crawlDetails && animes.length > 0) {
-        crawlDetailsAsync(db, animes, siteUrl);
+        crawlDetailsAsync(db, animes, siteUrl, type);
       }
 
       res.json({ success: true, data: { total: animes.length, todayCount, animeIds, categories } });
@@ -81,8 +78,8 @@ router.post('/anime/crawl', async (req, res) => {
 });
 
 // 异步爬取详情（分集信息）
-async function crawlDetailsAsync(db, animes, siteUrl) {
-  const crawler = new MaccmsCrawler(siteUrl);
+async function crawlDetailsAsync(db, animes, siteUrl, siteType) {
+  const crawler = getCrawlerByType(siteType, siteUrl);
   for (const a of animes) {
     try {
       const { anime, episodes } = await crawler.crawlDetail(a.detailUrl);
@@ -114,7 +111,7 @@ async function crawlDetailsAsync(db, animes, siteUrl) {
         }
       }
 
-      const animeId = db.upsertAnime({ ...anime, siteUrl });
+      const animeId = db.upsertAnime({ ...anime, siteUrl, siteType });
 
       // 保存分类
       for (const cn of (anime.categoryNames || [])) {
@@ -206,7 +203,7 @@ router.get('/anime/episode/:epId/play', async (req, res) => {
     const anime = req.app.locals.db.getAnimeById(episode.anime_id);
     if (!anime) return res.status(404).json({ success: false, error: '动漫未找到' });
 
-    const crawler = new MaccmsCrawler(anime.site_url);
+    const crawler = getCrawlerByType(anime.site_type, anime.site_url);
     const { videoUrl, videoUrlNext } = await crawler.crawlPlayUrl(episode.play_url);
 
     // 缓存到数据库
@@ -227,7 +224,7 @@ router.post('/anime/episode/:epId/refresh', async (req, res) => {
       return res.status(400).json({ success: false, error: '无播放页地址' });
     }
     const anime = req.app.locals.db.getAnimeById(episode.anime_id);
-    const crawler = new MaccmsCrawler(anime.site_url);
+    const crawler = getCrawlerByType(anime.site_type, anime.site_url);
     const { videoUrl, videoUrlNext } = await crawler.crawlPlayUrl(episode.play_url);
     req.app.locals.db.updateEpisodeVideoUrl(epId, videoUrl, videoUrlNext);
     res.json({ success: true, data: { videoUrl, videoUrlNext: videoUrlNext || '' } });
@@ -248,7 +245,7 @@ router.post('/anime/episode/:epId/download', async (req, res) => {
     let videoUrl = episode.video_url;
     if (!videoUrl) {
       const anime = req.app.locals.db.getAnimeById(episode.anime_id);
-      const crawler = new MaccmsCrawler(anime.site_url);
+      const crawler = getCrawlerByType(anime.site_type, anime.site_url);
       const result = await crawler.crawlPlayUrl(episode.play_url);
       videoUrl = result.videoUrl;
       req.app.locals.db.updateEpisodeVideoUrl(epId, result.videoUrl, result.videoUrlNext || '');
@@ -290,3 +287,5 @@ router.get('/categories', async (req, res) => {
 });
 
 module.exports = router;
+// 共享给 server.js 调度器，避免重复实现详情爬取逻辑
+module.exports._crawlDetailsForScheduler = crawlDetailsAsync;
