@@ -48,6 +48,22 @@ curl http://localhost:3000/api/history
 | GET | `/api/stats` | 获取统计信息 |
 | GET | `/api/download/:id` | 获取下载信息 |
 
+### 动漫 / 播放 / 代理
+
+| 方法 | 端点 | 说明 |
+|------|------|------|
+| GET | `/api/site/detect?url=` | 站点类型检测 |
+| POST | `/api/anime/crawl` | 爬取每日更新 |
+| GET | `/api/anime/daily` | 每日更新列表 |
+| GET | `/api/anime/:id` | 动漫详情（含分集） |
+| GET | `/api/anime/search?q=` | 搜索动漫 |
+| GET | `/api/anime/episode/:epId/play` | 解析播放地址（返回直连/代理地址） |
+| POST | `/api/anime/episode/:epId/refresh` | 刷新播放地址 |
+| POST | `/api/anime/episode/:epId/download` | 下载分集（m3u8→mp4） |
+| GET | `/api/categories` | 分类列表 |
+| GET | `/api/proxy/m3u8?url=&ref=` | 代理 m3u8（改写分片/嵌套列表） |
+| GET | `/api/proxy/seg?url=&ref=` | 代理分片（支持 Range 拖动） |
+
 ## JavaScript 示例
 
 ```javascript

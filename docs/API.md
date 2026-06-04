@@ -379,6 +379,85 @@ curl http://localhost:3000/downloads/image/example.jpg -o example.jpg
 
 ---
 
+## 动漫站点接口（maccms）
+
+### 11. 站点类型检测
+```
+GET /api/site/detect?url=<站点地址>
+```
+
+### 12. 爬取每日更新
+```
+POST /api/anime/crawl
+Content-Type: application/json
+
+{ "siteUrl": "https://m.tiantiandongman.com/", "filterToday": true, "crawlDetails": true }
+```
+
+### 13. 每日更新列表 / 详情 / 搜索
+```
+GET /api/anime/daily            # 今日更新列表
+GET /api/anime/:id              # 动漫详情（含分集，按线路分组）
+GET /api/anime/search?q=keyword # 搜索动漫
+GET /api/categories             # 分类列表
+```
+
+### 14. 解析分集播放地址
+
+```
+GET /api/anime/episode/:epId/play
+```
+
+**响应示例**
+```json
+{
+  "success": true,
+  "data": {
+    "videoUrl": "https://cdn.example.com/video/index.m3u8",
+    "proxyUrl": "/api/proxy/m3u8?url=...&ref=...",
+    "playPageUrl": "https://m.tiantiandongman.com/v/50058-3-1/",
+    "videoUrlNext": "https://cdn.example.com/next/index.m3u8",
+    "cached": false
+  }
+}
+```
+
+**字段说明**
+- `videoUrl`: 直连播放地址（m3u8/mp4/flv）
+- `proxyUrl`: 经服务端代理的 m3u8 地址（仅 m3u8 时返回，用于直连失败兜底）
+- `playPageUrl`: 播放页地址（作为代理 Referer 来源）
+- `videoUrlNext`: 下一集地址（来源页解析所得）
+- `cached`: 是否取自数据库缓存
+
+### 15. 刷新播放地址 / 下载分集
+```
+POST /api/anime/episode/:epId/refresh   # 强制重新解析并缓存
+POST /api/anime/episode/:epId/download  # 异步下载（m3u8 → mp4）
+```
+
+---
+
+## 视频代理接口
+
+服务端代理第三方 m3u8，统一附带 `Referer`/UA 以绕过防盗链/跨域，并支持 Range 拖动。
+
+### 16. 代理 m3u8
+```
+GET /api/proxy/m3u8?url=<编码后的m3u8地址>&ref=<编码后的referer>
+```
+- 拉取 m3u8 文本，将其中的**分片地址与嵌套播放列表**改写为指向本服务（`/api/proxy/seg`、`/api/proxy/m3u8`）
+- 以响应最终地址为基准解析相对路径，兼容 CDN 重定向
+- 返回 `Content-Type: application/vnd.apple.mpegurl`
+
+### 17. 代理分片
+```
+GET /api/proxy/seg?url=<编码后的分片地址>&ref=<编码后的referer>
+```
+- 流式转发 .ts/key 等分片，透传 `Content-Type`
+- 支持 `Range` 请求（回传 `206 Partial Content` + `Content-Range`），可拖动进度
+
+---
+
 ## 使用示例
 
 ### JavaScript (Fetch API)
@@ -512,6 +591,11 @@ curl -X DELETE http://localhost:3000/api/resources/1
 ---
 
 ## 更新日志
+
+### v3.1.0 (2026-06-04)
+- 新增动漫站点接口文档（检测/爬取/详情/播放/下载）
+- 新增视频代理接口（`/api/proxy/m3u8`、`/api/proxy/seg`，支持 Referer/Range）
+- `/play` 响应新增 `proxyUrl`/`playPageUrl`/`videoUrlNext`
 
 ### v1.0.0 (2024-01-01)
 - 基础资源管理接口

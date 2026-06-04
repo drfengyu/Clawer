@@ -15,11 +15,21 @@
 - 🔍 **站点类型自动检测**（comicat / maccms / 通用站）
 - 📅 **每日更新爬取** — 只抓取首页"每日更新"分区
 - 🎴 **B站风格画廊** — 封面网格 + 评分 + 更新状态
-- 📺 **在线播放** — DPlayer + hls.js 播放 m3u8/mp4 直链
+- 🗂️ **全量分区采集** — 一键抓取四大分区全部分页入库（`npm run sync:categories`）
+- 📖 **分区浏览** — 读本地库，后端 SQL 分页（每页 60）+ 库内搜索，毫秒级翻页
 - 🎬 **分集 + 多线路** — 详情页选集，当天更新集自动高亮
 - 📋 **元数据展示** — 名称/主演/类型/地区/语言/首播
 - ⬇️ **m3u8 下载** — ffmpeg 合并为 mp4
-- ⏰ **每日自动更新** — 内置调度器，每天 8 点自动爬取
+- ⏰ **每日自动更新** — 内置调度器：每天 8 点爬每日更新，凌晨 4 点增量同步分区
+
+### 在线播放器（对标 B站 观感）
+- 📺 **DPlayer + hls.js** — 播放 m3u8/mp4，缓冲/起播/重试已调优
+- ⏩ **倍速播放** — 0.5x–2x
+- 🖥️ **网页全屏** + 快捷键（← → 快进退 / ↑ ↓ 音量 / 空格 / F）
+- 🎬 **自动连播下一集** + **预载下一集**（切集秒开）
+- 💾 **记忆播放进度** — 刷新/返回续播
+- 🔀 **多线路切换** — 同集号不同线路就地切换，保留进度
+- 🛡️ **m3u8 服务端代理** — 带 Referer 绕过防盗链/跨域，支持拖动；直连失败自动兜底
 
 ## 🚀 快速开始
 
@@ -55,6 +65,18 @@ npm run dev
 
 服务器将在 `http://localhost:3000` 启动，首页自动跳转到动漫画廊 `/gallery`。
 
+### 全量同步分区资源（可选）
+
+一次性把源站四大分区（日漫/国漫/美漫/动漫剧场）的全部目录抓入本地库：
+
+```bash
+npm run sync:categories        # 抓全部分区全部页
+node scripts/syncCategories.js 5   # 每分区最多抓 5 页（限量/调试）
+```
+
+> ⚠️ 该脚本为独立进程，运行期间需**独占数据库**（sql.js 整库内存镜像）——请先停掉正在运行的服务，跑完再 `npm start`。
+> 服务进程内的「每日增量同步」（凌晨 4 点）复用同一实例，**无需停服务**。仅同步目录卡片，分集/播放地址仍在打开详情时按需抓取。
+
 ## 📖 使用指南
 
 ### 动漫画廊（推荐）
@@ -62,16 +84,21 @@ npm run dev
 1. **画廊首页**: http://localhost:3000/gallery
    - 顶部输入动漫站 URL（如 `https://m.tiantiandongman.com/`）点击"爬取资源"
    - 卡片网格展示每日更新动漫（封面 + 评分 + 更新状态）
-   - 按分类（日漫/国漫/美漫/动漫剧场）筛选
+   - 按分类（日漫/国漫/美漫/动漫剧场）进入分区浏览
 
-2. **详情页**: http://localhost:3000/anime/:id
+2. **分区浏览**: http://localhost:3000/category/:name
+   - 读本地库，分页展示（每页 60）+ 分区内搜索（`?q=关键词`）
+   - 支持 `?page=` 翻页、`?sort=` 排序；数据来自全量同步，毫秒级响应
+
+3. **详情页**: http://localhost:3000/anime/:id
    - 封面、评分、简介、元数据（主演/类型/地区/语言/首播）
    - 多线路切换 + 分集列表，当天更新集高亮标记 NEW
+   - 分集/播放地址按需抓取（首次打开时补全）
 
-3. **播放页**: http://localhost:3000/play/:episodeId
-   - DPlayer 播放器，支持 m3u8/mp4
-   - 上一集 / 下一集导航
-   - 下载本集（m3u8 → mp4）
+4. **播放页**: http://localhost:3000/play/:episodeId
+   - DPlayer 播放器：倍速、网页全屏、自动连播、记忆进度、多线路切换
+   - 上一集 / 下一集导航（限定当前线路）
+   - 直连卡顿时可右键"切换代理线路"，下载本集（m3u8 → mp4）
 
 ### 通用爬虫
 
@@ -123,10 +150,14 @@ curl http://localhost:3000/api/resources
 - `GET /api/anime/daily` - 获取每日更新列表
 - `GET /api/anime/:id` - 获取动漫详情（含分集）
 - `GET /api/anime/search?q=` - 搜索动漫
-- `GET /api/anime/episode/:epId/play` - 解析分集播放地址
+- `GET /api/anime/episode/:epId/play` - 解析分集播放地址（返回 `videoUrl`/`proxyUrl`/`videoUrlNext`）
 - `POST /api/anime/episode/:epId/refresh` - 强制刷新播放地址
 - `POST /api/anime/episode/:epId/download` - 下载分集（m3u8→mp4）
 - `GET /api/categories` - 获取分类列表
+
+### 视频代理（绕过防盗链/跨域）
+- `GET /api/proxy/m3u8?url=&ref=` - 拉取并改写 m3u8（分片/嵌套列表回流经本服务）
+- `GET /api/proxy/seg?url=&ref=` - 流式转发分片，支持 Range（拖动进度）
 
 ### 资源管理（通用）
 - `GET /api/resources` - 获取所有资源
@@ -156,23 +187,32 @@ curl http://localhost:3000/api/resources
 ```
 Clawer/
 ├── src/
-│   ├── server.js              # 服务器入口 + 每日自动更新调度器
+│   ├── server.js              # 服务器入口 + 每日更新/分区增量同步调度器
 │   ├── crawlers/
 │   │   ├── baseCrawler.js     # 通用爬虫（反爬绕过、磁力链）
 │   │   ├── siteDetector.js    # 站点类型检测
+│   │   ├── crawlerRegistry.js # 多站点爬虫注册表
 │   │   └── maccmsCrawler.js   # maccms 动漫站爬虫
 │   ├── routes/
-│   │   ├── pages.js           # 页面路由（画廊/详情/播放）
+│   │   ├── pages.js           # 页面路由（画廊/分区/详情/播放）
 │   │   ├── api.js             # 通用 API 路由
-│   │   └── animeRoutes.js     # 动漫 API 路由
+│   │   ├── animeRoutes.js     # 动漫 API 路由
+│   │   ├── proxyRoutes.js     # m3u8 / 分片视频代理
+│   │   └── adminRoutes.js     # 只读数据库后台
+│   ├── sync/
+│   │   └── categorySync.js    # 分区目录同步核心（供脚本与调度器复用）
 │   ├── database/
 │   │   └── db.js              # 数据库操作（resources + animes 系列表）
 │   └── utils/
 │       └── downloader.js      # 下载工具（HTTP + m3u8）
+├── scripts/
+│   └── syncCategories.js      # 全量分区同步 CLI（npm run sync:categories）
 ├── views/                     # EJS 模板
 │   ├── gallery.ejs            # B站风格画廊
+│   ├── category.ejs           # 分区浏览（分页 + 搜索）
 │   ├── detail.ejs             # 动漫详情页
 │   ├── player.ejs             # 在线播放页
+│   ├── admin.ejs              # 数据库后台
 │   ├── resources.ejs          # 通用资源列表
 │   └── error.ejs              # 错误页
 ├── public/                    # 静态资源
@@ -180,7 +220,7 @@ Clawer/
 │   └── js/
 │       ├── gallery.js         # 画廊筛选
 │       ├── detail.js          # 选集切换
-│       ├── player.js          # DPlayer 初始化
+│       ├── player.js          # DPlayer + hls 调优 + 代理兜底
 │       └── resources.js
 ├── downloads/                 # 下载目录（image/video/audio）
 ├── docs/                      # 项目文档（API/使用/测试/总结等）
@@ -237,7 +277,13 @@ kill -9 <PID>
 
 1. 确认系统已安装 ffmpeg（`ffmpeg -version`）
 2. m3u8 地址有时效性，可在播放器右键"刷新播放地址"
-3. 部分 CDN 可能有跨域限制
+3. 部分 CDN 有跨域/防盗链限制 — 播放器右键"切换代理线路"走服务端代理（直连失败也会自动兜底）
+4. 流畅度上限取决于源站 CDN 带宽；代理只能绕过限制，无法突破源站本身的速度
+
+### 分区同步与服务常驻
+
+- `npm run sync:categories`（手动全量）需先停服务，独占数据库运行
+- 「每日增量同步」依赖服务**持续运行**才会在凌晨 4 点触发；若服务非常驻，建议用系统计划任务定时跑同步脚本（运行前停服务）
 
 ### 爬取失败
 
