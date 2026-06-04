@@ -35,6 +35,7 @@ async function startServer() {
   const pageRoutes = require('./routes/pages');
   const apiRoutes = require('./routes/api');
   const animeRoutes = require('./routes/animeRoutes');
+  const novelRoutes = require('./routes/novelRoutes');
   const adminRoutes = require('./routes/adminRoutes');
   const proxyRoutes = require('./routes/proxyRoutes');
   const feedRoutes = require('./routes/feedRoutes');
@@ -43,6 +44,7 @@ async function startServer() {
   app.use('/', feedRoutes);
   app.use('/api', apiRoutes);
   app.use('/api', animeRoutes);
+  app.use('/api/novel', novelRoutes);
   app.use('/api', adminRoutes);
   app.use('/api', proxyRoutes);
 

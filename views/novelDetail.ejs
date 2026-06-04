@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body { background: #f5f7fa; margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .header {
+      background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+      padding: 16px 32px; color: #fff; display: flex; align-items: center; gap: 16px;
+    }
+    .header a { color: rgba(255,255,255,.8); text-decoration: none; font-size: 14px; }
+    .header a:hover { color: #fff; }
+
+    .detail-container { max-width: 1200px; margin: 0 auto; padding: 32px 20px; }
+    .novel-header {
+      background: #fff; border-radius: 12px; padding: 32px; margin-bottom: 24px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08); display: flex; gap: 28px;
+    }
+    .novel-cover {
+      width: 180px; flex-shrink: 0; border-radius: 8px; overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,.15);
+    }
+    .novel-cover img { width: 100%; display: block; }
+    .novel-cover .no-cover {
+      width: 100%; padding-top: 140%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex; align-items: center; justify-content: center; color: #fff;
+      font-size: 16px; text-align: center; position: relative;
+    }
+    .novel-cover .no-cover span {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    }
+    .novel-info { flex: 1; }
+    .novel-info h1 { margin: 0 0 12px; font-size: 28px; color: #2c3e50; }
+    .novel-info .meta {
+      display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 16px;
+      font-size: 14px; color: #7f8c8d;
+    }
+    .novel-info .meta-item { display: flex; align-items: center; gap: 6px; }
+    .novel-info .meta-item strong { color: #34495e; }
+    .novel-info .description {
+      line-height: 1.8; color: #555; font-size: 14px;
+      max-height: 120px; overflow: auto; padding-right: 8px;
+    }
+    .novel-info .description::-webkit-scrollbar { width: 6px; }
+    .novel-info .description::-webkit-scrollbar-thumb {
+      background: #bdc3c7; border-radius: 3px;
+    }
+
+    .chapter-section {
+      background: #fff; border-radius: 12px; padding: 24px 32px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+    }
+    .chapter-section h2 {
+      margin: 0 0 20px; font-size: 20px; color: #2c3e50;
+      border-bottom: 2px solid #3498db; padding-bottom: 10px;
+    }
+    .chapter-list {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    .chapter-link {
+      display: block; padding: 10px 16px; background: #ecf0f1; border-radius: 6px;
+      text-decoration: none; color: #34495e; font-size: 14px;
+      transition: all .2s; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .chapter-link:hover { background: #3498db; color: #fff; transform: translateX(4px); }
+    .chapter-link.loading { opacity: .6; pointer-events: none; }
+
+    .empty { text-align: center; padding: 40px; color: #95a5a6; }
+    .crawl-btn {
+      display: inline-block; margin-top: 16px; padding: 10px 24px;
+      background: #3498db; color: #fff; border: none; border-radius: 6px;
+      cursor: pointer; font-size: 14px; font-weight: 600;
+    }
+    .crawl-btn:hover { background: #2980b9; }
+    .crawl-btn:disabled { opacity: .6; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="/novels">← 返回书库</a>
+    <span>|</span>
+    <a href="/gallery">动漫画廊</a>
+    <a href="/admin">后台</a>
+  </div>
+
+  <div class="detail-container">
+    <div class="novel-header">
+      <div class="novel-cover">
+        <% if (novel.cover) { %>
+          <img src="<%= novel.cover %>" alt="<%= novel.title %>">
+        <% } else { %>
+          <div class="no-cover">
+            <span>📖<br><%= novel.title %></span>
+          </div>
+        <% } %>
+      </div>
+
+      <div class="novel-info">
+        <h1><%= novel.title %></h1>
+        <div class="meta">
+          <div class="meta-item">
+            <strong>作者：</strong><span><%= novel.author %></span>
+          </div>
+          <div class="meta-item">
+            <strong>分类：</strong><span><%= novel.category %></span>
+          </div>
+          <div class="meta-item">
+            <strong>状态：</strong><span><%= novel.status %></span>
+          </div>
+          <% if (novel.word_count > 0) { %>
+            <div class="meta-item">
+              <strong>字数：</strong><span><%= (novel.word_count / 10000).toFixed(1) %>万字</span>
+            </div>
+          <% } %>
+          <div class="meta-item">
+            <strong>更新：</strong><span><%= novel.update_date %></span>
+          </div>
+        </div>
+        <div class="description">
+          <%= novel.description || '暂无简介' %>
+        </div>
+      </div>
+    </div>
+
+    <div class="chapter-section">
+      <h2>章节目录 (<%= chapters.length %>)</h2>
+
+      <% if (chapters.length === 0) { %>
+        <div class="empty">
+          <p>暂无章节</p>
+          <button class="crawl-btn" onclick="crawlDetail()" id="crawlBtn">爬取章节列表</button>
+          <p id="crawlMsg" style="margin-top:12px;font-size:13px;color:#7f8c8d;"></p>
+        </div>
+      <% } else { %>
+        <div class="chapter-list" id="chapterList">
+          <% chapters.forEach(chapter => { %>
+            <a href="/novel/<%= novel.id %>/read/<%= chapter.id %>" class="chapter-link" data-id="<%= chapter.id %>">
+              <%= chapter.title %>
+            </a>
+          <% }); %>
+        </div>
+      <% } %>
+    </div>
+  </div>
+
+  <script>
+    async function crawlDetail() {
+      const btn = document.getElementById('crawlBtn');
+      const msg = document.getElementById('crawlMsg');
+      btn.disabled = true;
+      msg.textContent = '爬取中，请稍候...';
+
+      try {
+        const res = await fetch('/api/novel/crawl-detail', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookId: '<%= novel.source_id %>' })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          msg.textContent = data.message;
+          setTimeout(() => window.location.reload(), 1500);
+        } else {
+          msg.textContent = '失败: ' + data.message;
+          btn.disabled = false;
+        }
+      } catch (err) {
+        msg.textContent = '请求失败: ' + err.message;
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

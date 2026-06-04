@@ -242,6 +242,87 @@ router.get('/admin/api', (req, res) => {
   res.render('apiDebug', { title: 'API 在线调试' });
 });
 
+// ─── 小说页面路由 ─────────────────────────────────────
+
+// 小说书库首页
+router.get('/novels', (req, res) => {
+  try {
+    const db = req.app.locals.db;
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = 60;
+    const keyword = req.query.q || '';
+    const category = req.query.category || '';
+
+    const total = db.countNovels({ keyword, category });
+    const totalPages = Math.ceil(total / pageSize);
+    const offset = (page - 1) * pageSize;
+
+    const novels = db.getAllNovels({ limit: pageSize, offset, keyword, category });
+
+    res.render('novels', {
+      title: '小说书库',
+      novels,
+      page,
+      totalPages,
+      total,
+      keyword,
+      category
+    });
+  } catch (error) {
+    res.status(500).render('error', { error: error.message });
+  }
+});
+
+// 小说详情页
+router.get('/novel/:id', (req, res) => {
+  try {
+    const db = req.app.locals.db;
+    const novel = db.getNovelById(req.params.id);
+
+    if (!novel) {
+      return res.status(404).render('error', { error: '小说不存在' });
+    }
+
+    const chapters = db.getChaptersByNovelId(req.params.id);
+
+    res.render('novelDetail', {
+      title: novel.title,
+      novel,
+      chapters
+    });
+  } catch (error) {
+    res.status(500).render('error', { error: error.message });
+  }
+});
+
+// 小说阅读器页面
+router.get('/novel/:novelId/read/:chapterId', (req, res) => {
+  try {
+    const db = req.app.locals.db;
+    const novel = db.getNovelById(req.params.novelId);
+    const chapter = db.getChapterById(req.params.chapterId);
+
+    if (!novel || !chapter) {
+      return res.status(404).render('error', { error: '小说或章节不存在' });
+    }
+
+    const allChapters = db.getChaptersByNovelId(req.params.novelId);
+    const currentIndex = allChapters.findIndex(c => c.id == req.params.chapterId);
+    const prevChapter = currentIndex > 0 ? allChapters[currentIndex - 1] : null;
+    const nextChapter = currentIndex < allChapters.length - 1 ? allChapters[currentIndex + 1] : null;
+
+    res.render('reader', {
+      title: `${chapter.title} - ${novel.title}`,
+      novel,
+      chapter,
+      prevChapter,
+      nextChapter
+    });
+  } catch (error) {
+    res.status(500).render('error', { error: error.message });
+  }
+});
+
 // 旧的资源列表
 router.get('/resources', async (req, res) => {
   try {

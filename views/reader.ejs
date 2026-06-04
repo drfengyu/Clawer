@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #faf9f6; color: #333;
+      font-family: "Source Han Serif CN", "Noto Serif SC", Georgia, serif;
+      line-height: 2;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+      padding: 12px 24px; color: #fff; display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,.1); position: sticky; top: 0; z-index: 100;
+    }
+    .header a { color: rgba(255,255,255,.85); text-decoration: none; font-size: 14px; transition: color .2s; }
+    .header a:hover { color: #fff; }
+    .header-left, .header-right { display: flex; align-items: center; gap: 16px; }
+    .novel-title { font-size: 14px; font-weight: 500; opacity: .9; }
+
+    .reader-container {
+      max-width: 720px; margin: 0 auto; padding: 40px 24px 80px;
+    }
+    .chapter-title {
+      font-size: 26px; font-weight: 600; margin-bottom: 32px;
+      text-align: center; color: #2c3e50; padding-bottom: 16px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    .chapter-content {
+      font-size: 18px; line-height: 2.2; color: #333;
+      text-align: justify; word-wrap: break-word;
+      background: #fff; padding: 32px; border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.05);
+    }
+    .chapter-content p {
+      margin-bottom: 1.5em; text-indent: 2em;
+    }
+    .chapter-content.loading {
+      text-align: center; color: #999; font-size: 16px; padding: 60px;
+    }
+
+    .nav-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: rgba(44,62,80,.95); backdrop-filter: blur(10px);
+      padding: 16px 24px; display: flex; justify-content: center; gap: 16px;
+      box-shadow: 0 -2px 12px rgba(0,0,0,.15);
+    }
+    .nav-btn {
+      padding: 10px 24px; background: #3498db; color: #fff;
+      border: none; border-radius: 6px; font-size: 14px; cursor: pointer;
+      transition: all .2s; text-decoration: none; display: inline-block;
+    }
+    .nav-btn:hover { background: #2980b9; transform: translateY(-2px); }
+    .nav-btn:disabled {
+      background: #7f8c8d; cursor: not-allowed; opacity: .6; transform: none;
+    }
+    .nav-btn.back { background: #95a5a6; }
+    .nav-btn.back:hover { background: #7f8c8d; }
+
+    @media (max-width: 768px) {
+      .chapter-content { font-size: 16px; padding: 20px; }
+      .chapter-title { font-size: 22px; }
+      .reader-container { padding: 24px 16px 80px; }
+      .nav-bar { flex-wrap: wrap; gap: 8px; }
+      .nav-btn { padding: 8px 16px; font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <a href="/novel/<%= novel.id %>">← 返回目录</a>
+      <span class="novel-title">《<%= novel.title %>》</span>
+    </div>
+    <div class="header-right">
+      <a href="/novels">书库</a>
+      <a href="/gallery">动漫</a>
+    </div>
+  </div>
+
+  <div class="reader-container">
+    <h1 class="chapter-title"><%= chapter.title %></h1>
+
+    <div class="chapter-content" id="content">
+      <% if (chapter.content && chapter.content.trim()) { %>
+        <% const paragraphs = chapter.content.split('\n').filter(p => p.trim()); %>
+        <% paragraphs.forEach(p => { %>
+          <p><%= p.trim() %></p>
+        <% }); %>
+      <% } else { %>
+        <div class="loading" id="loading">正在加载章节内容...</div>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="nav-bar">
+    <% if (prevChapter) { %>
+      <a href="/novel/<%= novel.id %>/read/<%= prevChapter.id %>" class="nav-btn">上一章</a>
+    <% } else { %>
+      <button class="nav-btn" disabled>上一章</button>
+    <% } %>
+
+    <a href="/novel/<%= novel.id %>" class="nav-btn back">目录</a>
+
+    <% if (nextChapter) { %>
+      <a href="/novel/<%= novel.id %>/read/<%= nextChapter.id %>" class="nav-btn">下一章</a>
+    <% } else { %>
+      <button class="nav-btn" disabled>下一章</button>
+    <% } %>
+  </div>
+
+  <% if (!chapter.content || !chapter.content.trim()) { %>
+  <script>
+    // 如果章节内容为空，实时爬取
+    (async () => {
+      try {
+        const res = await fetch('/api/novel/chapter/<%= chapter.id %>');
+        const data = await res.json();
+
+        if (data.success && data.chapter.content) {
+          const contentDiv = document.getElementById('content');
+          const paragraphs = data.chapter.content.split('\n').filter(p => p.trim());
+          contentDiv.innerHTML = paragraphs.map(p => `<p>${p.trim()}</p>`).join('');
+        } else {
+          document.getElementById('loading').textContent = '加载失败: ' + (data.message || '未知错误');
+        }
+      } catch (err) {
+        document.getElementById('loading').textContent = '加载失败: ' + err.message;
+      }
+    })();
+  </script>
+  <% } %>
+
+  <script>
+    // 键盘导航
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft' && <%= prevChapter ? 'true' : 'false' %>) {
+        window.location.href = '/novel/<%= novel.id %>/read/<%= prevChapter ? prevChapter.id : '' %>';
+      }
+      if (e.key === 'ArrowRight' && <%= nextChapter ? 'true' : 'false' %>) {
+        window.location.href = '/novel/<%= novel.id %>/read/<%= nextChapter ? nextChapter.id : '' %>';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -84,6 +84,10 @@ class Db {
       this.db.run(this._getCategoryLinkTableDDL());
       this.db.run(this._getEpisodeTableDDL());
 
+      // 小说相关表
+      this.db.run(this._getNovelTableDDL());
+      this.db.run(this._getChapterTableDDL());
+
       // 旧库结构迁移
       this._migrate();
 
@@ -619,6 +623,201 @@ class Db {
 
   deleteAnimeEpisodes(animeId) {
     this.db.run('DELETE FROM anime_episodes WHERE anime_id = ?', [animeId]);
+    this.save();
+  }
+
+  // ─── Novel DDL ──────────────────────────────────────────
+
+  _getNovelTableDDL() {
+    return `CREATE TABLE IF NOT EXISTS novels (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      source_id TEXT NOT NULL,
+      site_url TEXT NOT NULL,
+      title TEXT NOT NULL,
+      author TEXT DEFAULT '未知作者',
+      cover TEXT,
+      description TEXT,
+      category TEXT DEFAULT '其他',
+      status TEXT DEFAULT '连载中',
+      word_count INTEGER DEFAULT 0,
+      update_date TEXT,
+      detail_url TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(source_id, site_url)
+    )`;
+  }
+
+  _getChapterTableDDL() {
+    return `CREATE TABLE IF NOT EXISTS novel_chapters (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      novel_id INTEGER NOT NULL,
+      source_id TEXT NOT NULL,
+      chapter_number INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      content TEXT,
+      word_count INTEGER DEFAULT 0,
+      is_vip BOOLEAN DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (novel_id) REFERENCES novels(id) ON DELETE CASCADE,
+      UNIQUE(novel_id, source_id)
+    )`;
+  }
+
+  // ─── Novel CRUD ─────────────────────────────────────────
+
+  /**
+   * 插入或更新小说（基于 source_id + site_url 去重）
+   */
+  upsertNovel(novel) {
+    const existing = this.getNovelBySourceId(novel.sourceId, novel.siteUrl);
+    if (existing) {
+      // 更新
+      this.db.run(
+        `UPDATE novels SET title=?, author=?, cover=?, description=?, category=?, status=?,
+         word_count=?, update_date=?, detail_url=?, updated_at=CURRENT_TIMESTAMP
+         WHERE id=?`,
+        [novel.title, novel.author, novel.cover, novel.description, novel.category,
+         novel.status, novel.wordCount || 0, novel.updateDate, novel.detailUrl, existing.id]
+      );
+      this.save();
+      return existing.id;
+    } else {
+      // 插入
+      this.db.run(
+        `INSERT INTO novels (source_id, site_url, title, author, cover, description,
+         category, status, word_count, update_date, detail_url)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [novel.sourceId, novel.siteUrl, novel.title, novel.author, novel.cover,
+         novel.description, novel.category, novel.status, novel.wordCount || 0,
+         novel.updateDate, novel.detailUrl]
+      );
+      this.save();
+      const res = this.db.exec('SELECT last_insert_rowid() as id');
+      return res[0].values[0][0];
+    }
+  }
+
+  getNovelBySourceId(sourceId, siteUrl) {
+    const res = this.db.exec(
+      'SELECT * FROM novels WHERE source_id = ? AND site_url = ?',
+      [sourceId, siteUrl]
+    );
+    if (res.length === 0 || res[0].values.length === 0) return null;
+    return this._rowToObj(res[0].columns, res[0].values[0]);
+  }
+
+  getNovelById(id) {
+    const res = this.db.exec('SELECT * FROM novels WHERE id = ?', [id]);
+    if (res.length === 0 || res[0].values.length === 0) return null;
+    return this._rowToObj(res[0].columns, res[0].values[0]);
+  }
+
+  /**
+   * 获取所有小说（支持分页、搜索、分类筛选）
+   */
+  getAllNovels(opts = {}) {
+    const { limit = 60, offset = 0, keyword = '', category = '' } = opts;
+    let sql = 'SELECT * FROM novels WHERE 1=1';
+    const params = [];
+
+    if (keyword) {
+      sql += ' AND (title LIKE ? OR author LIKE ?)';
+      params.push(`%${keyword}%`, `%${keyword}%`);
+    }
+
+    if (category) {
+      sql += ' AND category = ?';
+      params.push(category);
+    }
+
+    sql += ' ORDER BY updated_at DESC LIMIT ? OFFSET ?';
+    params.push(limit, offset);
+
+    const res = this.db.exec(sql, params);
+    if (res.length === 0 || res[0].values.length === 0) return [];
+    return res[0].values.map(row => this._rowToObj(res[0].columns, row));
+  }
+
+  countNovels(opts = {}) {
+    const { keyword = '', category = '' } = opts;
+    let sql = 'SELECT COUNT(*) FROM novels WHERE 1=1';
+    const params = [];
+
+    if (keyword) {
+      sql += ' AND (title LIKE ? OR author LIKE ?)';
+      params.push(`%${keyword}%`, `%${keyword}%`);
+    }
+
+    if (category) {
+      sql += ' AND category = ?';
+      params.push(category);
+    }
+
+    const res = this.db.exec(sql, params);
+    return res[0].values[0][0];
+  }
+
+  deleteNovel(id) {
+    this.db.run('DELETE FROM novels WHERE id = ?', [id]);
+    this.save();
+  }
+
+  // ─── Chapter CRUD ───────────────────────────────────────
+
+  /**
+   * 插入或更新章节（基于 novel_id + source_id 去重）
+   */
+  upsertChapter(chapter) {
+    const existing = this.getChapterBySourceId(chapter.novelId, chapter.sourceId);
+    if (existing) {
+      // 更新（主要更新正文）
+      this.db.run(
+        `UPDATE novel_chapters SET title=?, content=?, word_count=?, is_vip=? WHERE id=?`,
+        [chapter.title, chapter.content, chapter.wordCount || 0, chapter.isVip ? 1 : 0, existing.id]
+      );
+      this.save();
+      return existing.id;
+    } else {
+      // 插入
+      this.db.run(
+        `INSERT INTO novel_chapters (novel_id, source_id, chapter_number, title, content, word_count, is_vip)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [chapter.novelId, chapter.sourceId, chapter.chapterNumber, chapter.title,
+         chapter.content || '', chapter.wordCount || 0, chapter.isVip ? 1 : 0]
+      );
+      this.save();
+      const res = this.db.exec('SELECT last_insert_rowid() as id');
+      return res[0].values[0][0];
+    }
+  }
+
+  getChapterBySourceId(novelId, sourceId) {
+    const res = this.db.exec(
+      'SELECT * FROM novel_chapters WHERE novel_id = ? AND source_id = ?',
+      [novelId, sourceId]
+    );
+    if (res.length === 0 || res[0].values.length === 0) return null;
+    return this._rowToObj(res[0].columns, res[0].values[0]);
+  }
+
+  getChapterById(id) {
+    const res = this.db.exec('SELECT * FROM novel_chapters WHERE id = ?', [id]);
+    if (res.length === 0 || res[0].values.length === 0) return null;
+    return this._rowToObj(res[0].columns, res[0].values[0]);
+  }
+
+  getChaptersByNovelId(novelId) {
+    const res = this.db.exec(
+      'SELECT * FROM novel_chapters WHERE novel_id = ? ORDER BY chapter_number ASC',
+      [novelId]
+    );
+    if (res.length === 0 || res[0].values.length === 0) return [];
+    return res[0].values.map(row => this._rowToObj(res[0].columns, row));
+  }
+
+  deleteNovelChapters(novelId) {
+    this.db.run('DELETE FROM novel_chapters WHERE novel_id = ?', [novelId]);
     this.save();
   }
 
