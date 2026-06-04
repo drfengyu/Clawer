@@ -176,6 +176,11 @@ router.get('/play/:epId', async (req, res) => {
   }
 });
 
+// 数据库后台（只读浏览）
+router.get('/admin', (req, res) => {
+  res.render('admin', { title: '数据库后台' });
+});
+
 // 旧的资源列表
 router.get('/resources', async (req, res) => {
   try {

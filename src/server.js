@@ -35,10 +35,12 @@ async function startServer() {
   const pageRoutes = require('./routes/pages');
   const apiRoutes = require('./routes/api');
   const animeRoutes = require('./routes/animeRoutes');
+  const adminRoutes = require('./routes/adminRoutes');
 
   app.use('/', pageRoutes);
   app.use('/api', apiRoutes);
   app.use('/api', animeRoutes);
+  app.use('/api', adminRoutes);
 
   // 404 处理
   app.use((req, res) => {
