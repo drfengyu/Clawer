@@ -40,9 +40,21 @@
     .anime-card .card-info { padding: 10px 12px 12px; }
     .anime-card .card-title { font-size: 14px; font-weight: 600; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: #222; }
     .empty-state { grid-column: 1 / -1; text-align: center; padding: 80px 20px; color: #999; }
+    .search-bar { display: flex; gap: 8px; padding: 16px 32px 0; }
+    .search-bar input { flex: 1; max-width: 420px; padding: 9px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
+    .search-bar button { padding: 9px 20px; border: none; border-radius: 8px; background: #e7a519; color: #fff; font-size: 14px; cursor: pointer; }
+    .search-bar button:hover { background: #d4940f; }
+    .search-bar .clear-link { align-self: center; color: #888; font-size: 13px; text-decoration: none; }
+    .pagination { display: flex; justify-content: center; align-items: center; gap: 6px; padding: 8px 16px 40px; flex-wrap: wrap; }
+    .pagination a, .pagination span { min-width: 38px; text-align: center; padding: 8px 12px; border-radius: 8px; font-size: 14px; text-decoration: none; border: 1px solid #e2e2e2; color: #444; background: #fff; }
+    .pagination a:hover { border-color: #e7a519; color: #e7a519; }
+    .pagination .current { background: #e7a519; color: #fff; border-color: #e7a519; font-weight: 600; }
+    .pagination .disabled { color: #bbb; background: #f6f6f6; pointer-events: none; }
+    .pagination .ellipsis { border: none; background: none; }
     @media (max-width: 640px) {
       .anime-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; padding: 12px; }
       .gallery-header { padding: 16px; }
+      .search-bar { padding: 12px 12px 0; }
     }
   </style>
 </head>
@@ -58,12 +70,19 @@
         <a href="/category/<%= encodeURIComponent(cat) %>" class="nav-link <%= cat === categoryName ? 'active' : '' %>"><%= cat %></a>
       <% }); %>
     </nav>
-    <div><span class="count-badge"><%= animes.length %> 部</span></div>
+    <div><span class="count-badge"><%= total %> 部</span></div>
   </header>
+
+  <form class="search-bar" method="get" action="/category/<%= encodeURIComponent(categoryName) %>">
+    <input type="text" name="q" value="<%= q %>" placeholder="在「<%= categoryName %>」中搜索片名…">
+    <% if (sort && sort !== 'update_date') { %><input type="hidden" name="sort" value="<%= sort %>"><% } %>
+    <button type="submit">搜索</button>
+    <% if (q) { %><a class="clear-link" href="/category/<%= encodeURIComponent(categoryName) %>">清除</a><% } %>
+  </form>
 
   <div class="anime-grid">
     <% if (animes.length === 0) { %>
-      <div class="empty-state"><p style="font-size:48px">📭</p><p>该分区暂无内容</p></div>
+      <div class="empty-state"><p style="font-size:48px">📭</p><p><%= q ? ('没有找到与「' + q + '」匹配的内容') : '该分区暂无内容' %></p></div>
     <% } else { %>
       <% animes.forEach(a => { %>
         <a class="anime-card" href="/anime/<%= a.id %>">
@@ -85,5 +104,23 @@
       <% }); %>
     <% } %>
   </div>
+
+  <% if (totalPages > 1) {
+       const base = '/category/' + encodeURIComponent(categoryName);
+       const qs = (p) => { let s = base + '?page=' + p; if (q) s += '&q=' + encodeURIComponent(q); if (sort && sort !== 'update_date') s += '&sort=' + encodeURIComponent(sort); return s; };
+       // 当前页 ±2，并始终含首尾，缺口用省略号
+       const nums = new Set([1, totalPages, page]);
+       for (let d = 1; d <= 2; d++) { if (page - d >= 1) nums.add(page - d); if (page + d <= totalPages) nums.add(page + d); }
+       const sorted = [...nums].sort((a, b) => a - b);
+  %>
+  <div class="pagination">
+    <% if (page > 1) { %><a href="<%= qs(page - 1) %>">上一页</a><% } else { %><span class="disabled">上一页</span><% } %>
+    <% let prev = 0; sorted.forEach(n => { %>
+      <% if (prev && n - prev > 1) { %><span class="ellipsis">…</span><% } %>
+      <% if (n === page) { %><span class="current"><%= n %></span><% } else { %><a href="<%= qs(n) %>"><%= n %></a><% } %>
+      <% prev = n; }); %>
+    <% if (page < totalPages) { %><a href="<%= qs(page + 1) %>">下一页</a><% } else { %><span class="disabled">下一页</span><% } %>
+  </div>
+  <% } %>
 </body>
 </html>

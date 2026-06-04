@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const MaccmsCrawler = require('../crawlers/maccmsCrawler');
 const { getCrawlerByType } = require('../crawlers/crawlerRegistry');
 
 // 四大分区配置
@@ -17,36 +16,42 @@ router.get('/', (req, res) => {
   res.redirect('/gallery');
 });
 
-// 分类浏览页
+// 分类浏览页 —— 读本地库，后端 SQL 分页 + 库内搜索（不再实时爬源站）
+const PAGE_SIZE = 60;
 router.get('/category/:name', async (req, res) => {
   try {
     const name = decodeURIComponent(req.params.name);
-    const path = CATEGORY_MAP[name];
-    if (!path) return res.status(404).render('error', { error: '无效的分类' });
+    if (!CATEGORY_MAP[name]) return res.status(404).render('error', { error: '无效的分类' });
 
-    const crawler = new MaccmsCrawler(DEFAULT_SITE);
-    const { animes } = await crawler.crawlCategory(DEFAULT_SITE.replace(/\/$/, '') + path);
+    const db = req.app.locals.db;
+    const q = (req.query.q || '').trim();
+    const sort = req.query.sort || 'update_date';
+    let page = parseInt(req.query.page || '1', 10);
+    if (!Number.isFinite(page) || page < 1) page = 1;
 
-    // 入库：已存在的动漫保留其原有数据（每日更新信息、简介、分集等），
-    // 仅为新动漫插入基础记录以便点进详情页
-    const enriched = [];
-    for (const a of animes) {
-      let dbAnime = req.app.locals.db.getAnimeBySourceId(a.sourceId, DEFAULT_SITE);
-      if (!dbAnime) {
-        // 新动漫：插入基础信息，update_date 留空（非每日更新）
-        const id = req.app.locals.db.upsertAnime({
-          ...a, siteUrl: DEFAULT_SITE, siteType: 'maccms', updateDate: ''
-        });
-        dbAnime = { id };
-      }
-      enriched.push({ ...a, id: dbAnime.id });
-    }
+    const total = db.countAnimes({ category: name, keyword: q });
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (page > totalPages) page = totalPages;
+
+    const animes = db.getAllAnimes({
+      category: name,
+      keyword: q,
+      sort,
+      limit: PAGE_SIZE,
+      offset: (page - 1) * PAGE_SIZE
+    });
 
     res.render('category', {
       title: name + ' - 动漫分区',
       categoryName: name,
-      animes: enriched,
-      categories: Object.keys(CATEGORY_MAP)
+      animes,
+      categories: Object.keys(CATEGORY_MAP),
+      total,
+      page,
+      totalPages,
+      pageSize: PAGE_SIZE,
+      q,
+      sort
     });
   } catch (error) {
     res.status(500).render('error', { error: error.message });

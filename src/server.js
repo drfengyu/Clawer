@@ -69,6 +69,8 @@ async function startServer() {
 
     // 启动每日自动更新调度器
     startDailyCrawlScheduler(db);
+    // 启动每日分区增量同步调度器（凌晨 4 点，与每日更新错开）
+    startCategorySyncScheduler(db);
   });
 
   // 优雅退出
@@ -122,6 +124,38 @@ function startDailyCrawlScheduler(db) {
   // 每 30 分钟检查一次
   tryDailyCrawl();
   setInterval(tryDailyCrawl, 30 * 60 * 1000);
+}
+
+// 每日分区增量同步调度器：服务进程内复用同一 db 实例，无双写问题
+function startCategorySyncScheduler(db) {
+  const { syncCategories } = require('./sync/categorySync');
+  let lastSyncDate = '';
+  let running = false;
+
+  async function trySync() {
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    // 每天凌晨 4 点触发一次（与 8 点每日更新错开），每天只跑一次
+    if (now.getHours() !== 4 || lastSyncDate === dateStr || running) return;
+    lastSyncDate = dateStr;
+    running = true;
+    console.log(`[分区同步] 开始每日增量同步 ${dateStr}...`);
+    try {
+      const { totalNew, total } = await syncCategories(db, {
+        // 增量：连续 3 页无新增即提前结束该分区（新片集中在前面）
+        stopAfterDryPages: 3,
+        log: (msg) => console.log('[分区同步] ' + msg)
+      });
+      console.log(`[分区同步] 完成！新增 ${totalNew} 部，当前总数 ${total} 部`);
+    } catch (e) {
+      console.error('[分区同步] 失败:', e.message);
+    } finally {
+      running = false;
+    }
+  }
+
+  // 每 30 分钟检查一次
+  setInterval(trySync, 30 * 60 * 1000);
 }
 
 startServer().catch(err => {

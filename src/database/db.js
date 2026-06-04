@@ -434,20 +434,42 @@ class Db {
     return this._rowToObj(res[0].columns, res[0].values[0]);
   }
 
-  getAllAnimes(opts = {}) {
-    const { category, sort = 'update_date', order = 'DESC', limit = 50, offset = 0 } = opts;
-    let sql = 'SELECT DISTINCT a.* FROM animes a';
+  // 构造分区/搜索的 FROM + WHERE（getAllAnimes 与 countAnimes 共用，保证条件一致）
+  _animesFromWhere(category, keyword) {
+    let sql = ' FROM animes a';
     const params = [];
+    const conds = [];
     if (category) {
-      sql += ' JOIN anime_category_links acl ON a.id = acl.anime_id JOIN anime_categories ac ON acl.category_id = ac.id WHERE ac.name = ?';
+      sql += ' JOIN anime_category_links acl ON a.id = acl.anime_id JOIN anime_categories ac ON acl.category_id = ac.id';
+      conds.push('ac.name = ?');
       params.push(category);
     }
+    if (keyword) {
+      conds.push('(a.title LIKE ? OR a.description LIKE ?)');
+      params.push(`%${keyword}%`, `%${keyword}%`);
+    }
+    if (conds.length) sql += ' WHERE ' + conds.join(' AND ');
+    return { sql, params };
+  }
+
+  getAllAnimes(opts = {}) {
+    const { category, keyword, sort = 'update_date', order = 'DESC', limit = 50, offset = 0 } = opts;
+    const { sql: fw, params } = this._animesFromWhere(category, keyword);
     const validSort = ['update_date', 'score', 'title', 'created_at'].includes(sort) ? sort : 'update_date';
-    sql += ` ORDER BY a.${validSort} ${order === 'ASC' ? 'ASC' : 'DESC'} LIMIT ? OFFSET ?`;
-    params.push(limit, offset);
-    const res = this.db.exec(sql, params);
+    // 次级排序按 created_at，让无日期的同步片也有稳定顺序
+    const sql = `SELECT DISTINCT a.*${fw} ORDER BY a.${validSort} ${order === 'ASC' ? 'ASC' : 'DESC'}, a.created_at DESC LIMIT ? OFFSET ?`;
+    const res = this.db.exec(sql, [...params, limit, offset]);
     if (res.length === 0 || res[0].values.length === 0) return [];
     return res[0].values.map(row => this._rowToObj(res[0].columns, row));
+  }
+
+  // 分区/搜索结果总数（分页算总页数用），WHERE 与 getAllAnimes 对齐
+  countAnimes(opts = {}) {
+    const { category, keyword } = opts;
+    const { sql: fw, params } = this._animesFromWhere(category, keyword);
+    const res = this.db.exec(`SELECT COUNT(DISTINCT a.id)${fw}`, params);
+    if (res.length === 0 || res[0].values.length === 0) return 0;
+    return res[0].values[0][0];
   }
 
   getAnimesByUpdateDate(dateStr) {
