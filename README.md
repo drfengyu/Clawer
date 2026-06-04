@@ -31,6 +31,11 @@
 - 🔀 **多线路切换** — 同集号不同线路就地切换，保留进度
 - 🛡️ **m3u8 服务端代理** — 带 Referer 绕过防盗链/跨域，支持拖动；直连失败自动兜底
 
+### 订阅与推送
+- 📡 **RSS 订阅** `/rss`（每日更新）、`/rss/category/:name`（分区）— 标准 RSS 2.0，任意阅读器/服务可订阅
+- 🔔 **每日主动推送** — 爬完后把"今日新增"推到 **Bark / Server酱 / 邮件(SMTP)**，按 `.env` 开关，未配置静默跳过
+- 详见 [docs/RSS_PUSH.md](./docs/RSS_PUSH.md)
+
 ### 后台管理
 - 🗄️ **数据库后台** `/admin` — 只读浏览各表（分页/搜索/排序/自动刷新）
 - 🔧 **API 在线调试** `/admin/api` — 常用接口快捷填充，方法/URL/Headers/Body 一键发送，响应格式化展示
@@ -55,6 +60,13 @@ cp .env.example .env
 PORT=3000
 DOWNLOAD_PATH=./downloads
 DB_PATH=./database.db
+
+# RSS / 推送（可选，详见 docs/RSS_PUSH.md）
+PUBLIC_BASE_URL=http://localhost:3000   # RSS/邮件链接基址
+PUSH_ENABLED=false                       # 每日爬完后主动推送总开关
+BARK_KEY=                                # Bark(iOS)；填 key 即启用
+SERVERCHAN_KEY=                          # Server酱(微信)；填 SendKey 即启用
+SMTP_HOST=                               # 邮件：HOST/USER/PASS/MAIL_TO 填齐即启用
 ```
 
 ### 启动服务器
@@ -166,6 +178,11 @@ curl http://localhost:3000/api/resources
 - `POST /api/anime/episode/:epId/download` - 下载分集（m3u8→mp4）
 - `GET /api/categories` - 获取分类列表
 
+### RSS 订阅与推送
+- `GET /rss` - 每日更新 RSS 2.0 订阅源
+- `GET /rss/category/:name` - 分区订阅源（如 `/rss/category/日漫`）
+- `POST /api/push/test` - 手动触发推送（联调用，返回各渠道结果）
+
 ### 视频代理（绕过防盗链/跨域）
 - `GET /api/proxy/m3u8?url=&ref=` - 拉取并改写 m3u8（分片/嵌套列表回流经本服务）
 - `GET /api/proxy/seg?url=&ref=` - 流式转发分片，支持 Range（拖动进度）
@@ -209,7 +226,15 @@ Clawer/
 │   │   ├── api.js             # 通用 API 路由
 │   │   ├── animeRoutes.js     # 动漫 API 路由
 │   │   ├── proxyRoutes.js     # m3u8 / 分片视频代理
+│   │   ├── feedRoutes.js      # RSS 订阅源路由（/rss）
 │   │   └── adminRoutes.js     # 只读数据库后台
+│   ├── feed/
+│   │   └── rss.js             # RSS 2.0 feed 生成（纯函数）
+│   ├── push/                  # 主动推送适配器（按 .env 开关）
+│   │   ├── index.js           # 推送编排（allSettled 并发分发）
+│   │   ├── bark.js            # Bark (iOS)
+│   │   ├── serverchan.js      # Server酱 (微信)
+│   │   └── email.js           # 邮件 (SMTP, nodemailer)
 │   ├── sync/
 │   │   └── categorySync.js    # 分区目录同步核心（供脚本与调度器复用）
 │   ├── database/

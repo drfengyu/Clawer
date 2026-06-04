@@ -151,6 +151,25 @@ router.get('/anime/daily', async (req, res) => {
   }
 });
 
+// 手动触发推送（联调用）：把今日更新（或最近入库）推到已配置渠道
+router.post('/push/test', async (req, res) => {
+  try {
+    const db = req.app.locals.db;
+    const today = new Date();
+    const mmdd = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    let items = db.getAnimesByUpdateDate(mmdd);
+    if (!items || items.length === 0) {
+      items = db.getAllAnimes({ sort: 'created_at', order: 'DESC', limit: 5 });
+    }
+    items = items.slice(0, Number(req.body && req.body.limit) || 5);
+    const baseUrl = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`;
+    const results = await require('../push').pushDailyUpdate(items, { baseUrl });
+    res.json({ success: true, count: items.length, results });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 router.get('/anime/search', async (req, res) => {
   try {
     const { q } = req.query;

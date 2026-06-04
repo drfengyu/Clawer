@@ -37,8 +37,10 @@ async function startServer() {
   const animeRoutes = require('./routes/animeRoutes');
   const adminRoutes = require('./routes/adminRoutes');
   const proxyRoutes = require('./routes/proxyRoutes');
+  const feedRoutes = require('./routes/feedRoutes');
 
   app.use('/', pageRoutes);
+  app.use('/', feedRoutes);
   app.use('/api', apiRoutes);
   app.use('/api', animeRoutes);
   app.use('/api', adminRoutes);
@@ -103,18 +105,29 @@ function startDailyCrawlScheduler(db) {
         const { animes, categories } = await crawler.crawlHomepage(true);
 
         for (const cat of categories) db.getOrCreateCategory(cat.name);
+        const newItems = [];
         for (const a of animes) {
+          // upsert 前判断是否为新片，用于主动推送（只推今日新增）
+          const isNew = !db.getAnimeBySourceId(a.sourceId, DEFAULT_SITE);
           const id = db.upsertAnime({ ...a, siteUrl: DEFAULT_SITE, siteType: type });
           if (a.categoryName) {
             const catId = db.getOrCreateCategory(a.categoryName);
             db.linkAnimeCategory(id, catId);
           }
+          if (isNew) newItems.push({ ...a, id, cover: a.cover, status: a.status });
         }
 
         // 异步爬详情：复用 animeRoutes 的实现（封面跨CDN保留、状态合并等）
         require('./routes/animeRoutes')._crawlDetailsForScheduler(db, animes, DEFAULT_SITE, type);
 
-        console.log(`[每日更新] 完成！${animes.length} 部今日更新`);
+        // 主动推送今日新增（按 .env 开关，fire-and-forget，不阻塞详情爬取）
+        if (process.env.PUSH_ENABLED === 'true') {
+          const baseUrl = process.env.PUBLIC_BASE_URL || `http://localhost:${PORT}`;
+          require('./push').pushDailyUpdate(newItems, { baseUrl })
+            .catch((e) => console.error('[推送] 失败:', e.message));
+        }
+
+        console.log(`[每日更新] 完成！${animes.length} 部今日更新，新增 ${newItems.length} 部`);
       } catch (e) {
         console.error('[每日更新] 爬取失败:', e.message);
       }
