@@ -61,7 +61,7 @@ PORT=3000
 DOWNLOAD_PATH=./downloads
 DB_PATH=./database.db
 
-# RSS / 推送（可选，详见 docs/RSS_PUSH.md）
+# RSS / 推送（可选，完整配置说明见 docs/CONFIG.md）
 PUBLIC_BASE_URL=http://localhost:3000   # RSS/邮件链接基址
 PUSH_ENABLED=false                       # 每日爬完后主动推送总开关
 BARK_KEY=                                # Bark(iOS)；填 key 即启用
@@ -264,6 +264,8 @@ Clawer/
 ├── downloads/                 # 下载目录（image/video/audio）
 ├── docs/                      # 项目文档（API/使用/测试/总结等）
 │   ├── API.md                 # 完整 API 文档
+│   ├── CONFIG.md              # .env 配置详细说明（RSS/推送/邮箱）
+│   ├── RSS_PUSH.md           # RSS 订阅与每日推送功能说明
 │   ├── API_QUICK_REFERENCE.md # API 快速参考
 │   ├── USAGE.md               # 使用教程
 │   ├── TEST.md                # 测试指南
