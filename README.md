@@ -31,6 +31,10 @@
 - 🔀 **多线路切换** — 同集号不同线路就地切换，保留进度
 - 🛡️ **m3u8 服务端代理** — 带 Referer 绕过防盗链/跨域，支持拖动；直连失败自动兜底
 
+### 后台管理
+- 🗄️ **数据库后台** `/admin` — 只读浏览各表（分页/搜索/排序/自动刷新）
+- 🔧 **API 在线调试** `/admin/api` — 常用接口快捷填充，方法/URL/Headers/Body 一键发送，响应格式化展示
+
 ## 🚀 快速开始
 
 ### 安装依赖
@@ -104,6 +108,13 @@ node scripts/syncCategories.js 5   # 每分区最多抓 5 页（限量/调试）
 
 1. **资源列表**: http://localhost:3000/resources
    - 查看爬取的图片/视频/磁力链资源
+
+### 后台管理
+
+1. **数据库后台**: http://localhost:3000/admin
+   - 只读浏览各数据表，支持分页 / 跨列搜索 / 排序 / 自动刷新
+2. **API 在线调试**: http://localhost:3000/admin/api（或从后台顶栏「🔧 API 调试」进入）
+   - 左侧选常用接口自动填充，右侧设置方法/URL/Headers/Body 后一键发送，查看格式化响应
 
 ### API 使用
 
@@ -213,6 +224,7 @@ Clawer/
 │   ├── detail.ejs             # 动漫详情页
 │   ├── player.ejs             # 在线播放页
 │   ├── admin.ejs              # 数据库后台
+│   ├── apiDebug.ejs           # API 在线调试控制台
 │   ├── resources.ejs          # 通用资源列表
 │   └── error.ejs              # 错误页
 ├── public/                    # 静态资源
@@ -221,6 +233,8 @@ Clawer/
 │       ├── gallery.js         # 画廊筛选
 │       ├── detail.js          # 选集切换
 │       ├── player.js          # DPlayer + hls 调优 + 代理兜底
+│       ├── admin.js           # 数据库后台表浏览器
+│       ├── apiDebug.js        # API 调试控制台
 │       └── resources.js
 ├── downloads/                 # 下载目录（image/video/audio）
 ├── docs/                      # 项目文档（API/使用/测试/总结等）
