@@ -494,6 +494,30 @@ class Db {
     return res[0].values[0][0];
   }
 
+  // 时间轴：按天聚合的更新日期（YYYY-MM-DD）列表，含当天更新数量，分页用
+  getUpdateDates(limit = 14, offset = 0) {
+    const res = this.db.exec(
+      `SELECT update_date, COUNT(*) AS cnt FROM animes
+       WHERE update_date LIKE '____-__-__' ESCAPE '\\'
+       AND LENGTH(update_date) = 10
+       GROUP BY update_date ORDER BY update_date DESC LIMIT ? OFFSET ?`,
+      [limit, offset]
+    );
+    if (res.length === 0 || res[0].values.length === 0) return [];
+    return res[0].values.map(v => ({ date: v[0], count: v[1] }));
+  }
+
+  // 时间轴分页：有效更新日期（去重）的总天数
+  countUpdateDates() {
+    const res = this.db.exec(
+      `SELECT COUNT(DISTINCT update_date) FROM animes
+       WHERE update_date LIKE '____-__-__' ESCAPE '\\'
+       AND LENGTH(update_date) = 10`
+    );
+    if (res.length === 0 || res[0].values.length === 0) return 0;
+    return res[0].values[0][0];
+  }
+
   searchAnimes(keyword) {
     const res = this.db.exec(
       'SELECT * FROM animes WHERE title LIKE ? OR description LIKE ? ORDER BY update_date DESC LIMIT 50',

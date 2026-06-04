@@ -14,6 +14,7 @@
 ### 动漫站点（maccms 类型）
 - 🔍 **站点类型自动检测**（comicat / maccms / 通用站）
 - 📅 **每日更新爬取** — 只抓取首页"每日更新"分区
+- 🕒 **每日更新时间轴** `/timeline` — 按天回顾历史每日更新（标题 + 该集简介），点击跳详情页
 - 🎴 **B站风格画廊** — 封面网格 + 评分 + 更新状态
 - 🗂️ **全量分区采集** — 一键抓取四大分区全部分页入库（`npm run sync:categories`）
 - 📖 **分区浏览** — 读本地库，后端 SQL 分页（每页 60）+ 库内搜索，毫秒级翻页
@@ -245,6 +246,7 @@ Clawer/
 │   └── syncCategories.js      # 全量分区同步 CLI（npm run sync:categories）
 ├── views/                     # EJS 模板
 │   ├── gallery.ejs            # B站风格画廊
+│   ├── timeline.ejs           # 每日更新时间轴
 │   ├── category.ejs           # 分区浏览（分页 + 搜索）
 │   ├── detail.ejs             # 动漫详情页
 │   ├── player.ejs             # 在线播放页

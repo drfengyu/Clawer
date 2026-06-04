@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .gallery-header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      padding: 24px 32px; color: #fff;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+    }
+    .gallery-header h1 { font-size: 24px; margin: 0; }
+    .main-nav { display: flex; gap: 6px; flex-wrap: wrap; }
+    .main-nav .nav-link {
+      padding: 7px 16px; border-radius: 8px; color: rgba(255,255,255,.8);
+      text-decoration: none; font-size: 14px; transition: all .2s;
+    }
+    .main-nav .nav-link:hover { background: rgba(255,255,255,.15); color: #fff; }
+    .main-nav .nav-link.active { background: #e7a519; color: #fff; }
+
+    .timeline-wrap { max-width: 920px; margin: 0 auto; padding: 28px 20px 60px; }
+    .timeline { position: relative; padding-left: 28px; }
+    .timeline::before {
+      content: ''; position: absolute; left: 7px; top: 6px; bottom: 6px;
+      width: 2px; background: linear-gradient(#e7a519, #e8e8e8);
+    }
+    .tl-day { position: relative; margin-bottom: 34px; }
+    .tl-day::before {
+      content: ''; position: absolute; left: -27px; top: 4px;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: #e7a519; border: 3px solid #fff; box-shadow: 0 0 0 2px #e7a519;
+    }
+    .tl-date {
+      display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px;
+    }
+    .tl-date .d { font-size: 19px; font-weight: 700; color: #222; }
+    .tl-date .wd { font-size: 13px; color: #888; }
+    .tl-date .cnt {
+      margin-left: auto; font-size: 12px; color: #e7a519;
+      background: #fff7e6; border: 1px solid #ffe1a8; padding: 2px 10px; border-radius: 20px;
+    }
+    .tl-items { display: flex; flex-direction: column; gap: 8px; }
+    .tl-item {
+      display: flex; gap: 12px; align-items: center; text-decoration: none; color: inherit;
+      background: #fff; border: 1px solid #eee; border-radius: 10px; padding: 10px 14px;
+      transition: all .15s;
+    }
+    .tl-item:hover { border-color: #e7a519; box-shadow: 0 4px 14px rgba(0,0,0,.08); transform: translateX(2px); }
+    .tl-item .thumb {
+      flex: 0 0 46px; width: 46px; height: 62px; border-radius: 6px; object-fit: cover;
+      background: #ececec;
+    }
+    .tl-item .thumb-ph {
+      flex: 0 0 46px; width: 46px; height: 62px; border-radius: 6px; background: #ececec;
+      display: flex; align-items: center; justify-content: center; color: #aaa; font-size: 11px; text-align: center; padding: 4px;
+    }
+    .tl-item .body { min-width: 0; flex: 1; }
+    .tl-item .t {
+      font-size: 15px; font-weight: 600; color: #222; margin-bottom: 4px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .tl-item .b {
+      font-size: 13px; color: #777; line-height: 1.4;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .tl-item .status {
+      flex: 0 0 auto; font-size: 12px; color: #fff; background: #e74c3c;
+      padding: 3px 10px; border-radius: 14px; white-space: nowrap;
+    }
+    .empty-state { text-align: center; padding: 80px 20px; color: #999; }
+    .pager { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 30px; }
+    .pager a, .pager span {
+      padding: 8px 16px; border-radius: 8px; font-size: 14px; text-decoration: none;
+      border: 1px solid #ddd; color: #555; background: #fff;
+    }
+    .pager a:hover { border-color: #e7a519; color: #e7a519; }
+    .pager .cur { background: #e7a519; color: #fff; border-color: #e7a519; }
+    .pager .disabled { opacity: .4; pointer-events: none; }
+    @media (max-width: 640px) {
+      .gallery-header { padding: 16px 12px; }
+      .timeline-wrap { padding: 18px 10px 40px; }
+      .tl-item .status { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="gallery-header">
+    <div>
+      <h1>📅 每日更新时间轴</h1>
+      <span style="opacity:.7;font-size:13px">回顾历史每日更新 · 共 <%= totalDays %> 天</span>
+    </div>
+    <nav class="main-nav">
+      <a href="/gallery" class="nav-link">每日更新</a>
+      <a href="/timeline" class="nav-link active">时间轴</a>
+      <% (menuCategories || []).forEach(cat => { %>
+        <a href="/category/<%= encodeURIComponent(cat) %>" class="nav-link"><%= cat %></a>
+      <% }); %>
+    </nav>
+  </header>
+
+  <div class="timeline-wrap">
+    <% if (!groups || groups.length === 0) { %>
+      <div class="empty-state">
+        <p style="font-size:48px">🗓️</p>
+        <p>暂无历史更新记录</p>
+        <p style="font-size:13px">每日自动爬取后，更新记录会按天累积在这里</p>
+      </div>
+    <% } else { %>
+      <div class="timeline">
+        <% groups.forEach(g => { %>
+          <div class="tl-day">
+            <div class="tl-date">
+              <span class="d"><%= g.date %></span>
+              <span class="wd"><%= g.weekday %></span>
+              <span class="cnt"><%= g.count %> 部更新</span>
+            </div>
+            <div class="tl-items">
+              <% g.items.forEach(it => { %>
+                <a class="tl-item" href="/anime/<%= it.id %>">
+                  <% if (it.cover) { %>
+                    <img class="thumb" src="<%= it.cover %>" alt="" loading="lazy" referrerpolicy="no-referrer"
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                    <div class="thumb-ph" style="display:none"><%= it.title.slice(0,4) %></div>
+                  <% } else { %>
+                    <div class="thumb-ph"><%= it.title.slice(0,4) %></div>
+                  <% } %>
+                  <div class="body">
+                    <div class="t"><%= it.title %></div>
+                    <div class="b"><%= it.brief || '暂无简介' %></div>
+                  </div>
+                  <% if (it.status) { %><span class="status"><%= it.status %></span><% } %>
+                </a>
+              <% }); %>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+
+      <% if (totalPages > 1) { %>
+        <div class="pager">
+          <% if (page > 1) { %>
+            <a href="/timeline?page=<%= page - 1 %>">‹ 较新</a>
+          <% } else { %>
+            <span class="disabled">‹ 较新</span>
+          <% } %>
+          <span class="cur"><%= page %> / <%= totalPages %></span>
+          <% if (page < totalPages) { %>
+            <a href="/timeline?page=<%= page + 1 %>">较早 ›</a>
+          <% } else { %>
+            <span class="disabled">较早 ›</span>
+          <% } %>
+        </div>
+      <% } %>
+    <% } %>
+  </div>
+</body>
+</html>

@@ -100,6 +100,7 @@
     </div>
     <nav class="main-nav">
       <a href="/gallery" class="nav-link active">每日更新</a>
+      <a href="/timeline" class="nav-link">时间轴</a>
       <% (menuCategories || []).forEach(cat => { %>
         <a href="/category/<%= encodeURIComponent(cat) %>" class="nav-link"><%= cat %></a>
       <% }); %>

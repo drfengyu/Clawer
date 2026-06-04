@@ -93,6 +93,47 @@ router.get('/gallery', async (req, res) => {
   }
 });
 
+// 每日更新时间轴 —— 按天回顾历史每日更新（标题 + 该集简介，点击跳详情）
+const TIMELINE_DAYS_PER_PAGE = 14;
+const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+router.get('/timeline', (req, res) => {
+  try {
+    const db = req.app.locals.db;
+    let page = parseInt(req.query.page || '1', 10);
+    if (!Number.isFinite(page) || page < 1) page = 1;
+
+    const totalDays = db.countUpdateDates();
+    const totalPages = Math.max(1, Math.ceil(totalDays / TIMELINE_DAYS_PER_PAGE));
+    if (page > totalPages) page = totalPages;
+
+    const dates = db.getUpdateDates(TIMELINE_DAYS_PER_PAGE, (page - 1) * TIMELINE_DAYS_PER_PAGE);
+    const groups = dates.map(d => {
+      const wd = WEEKDAYS[new Date(d.date + 'T00:00:00').getDay()] || '';
+      const items = db.getAnimesByUpdateDate(d.date).map(a => ({
+        id: a.id,
+        title: a.title,
+        cover: a.cover,
+        score: a.score,
+        status: a.status || '',
+        // 该集简介：优先正文简介，缺省回退到更新状态（如"更新至05集"）
+        brief: (a.description && a.description.trim()) ? a.description.trim() : (a.status || '')
+      }));
+      return { date: d.date, weekday: wd, count: d.count, items };
+    });
+
+    res.render('timeline', {
+      title: '每日更新时间轴',
+      groups,
+      page,
+      totalPages,
+      totalDays,
+      menuCategories: Object.keys(CATEGORY_MAP)
+    });
+  } catch (error) {
+    res.status(500).render('error', { error: error.message });
+  }
+});
+
 // 动漫详情页
 router.get('/anime/:id', async (req, res) => {
   try {
